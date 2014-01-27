@@ -47,15 +47,17 @@ sync.php - parameters and examples
 -------------------
 
 Possible parameters are:
+* *project* - specify project. If not specified, sync.php will update all autosync enabled projects in config.json.
 * *branch* – specify branch. By default sync.php uses 'master'.
 * *tag* – specify tag. Can't be used with cleanAndCloneLatestVersion configuration.
 
 You cant't specify together branch and tag.
 
 Examples:  
-*sync.php* – checkouts and pulls branch 'master'  
-*sync.php?branch=b1* – checkouts and pulls branch 'b1'  
-*sync.php?tag=v1.2* – checkouts tag 'v1.2'  
+*sync.php* – checkouts and pulls branch 'master' of all projects in config.json.
+*sync.php?project=test* – checkouts and pulls branch 'master' of project 'test'.
+*sync.php?project=test&branch=b1* – checkouts and pulls branch 'b1' of project 'test'.  
+*sync.php?project=test&tag=v1.2* – checkouts tag 'v1.2' of project 'test' 
 
 sync.php makes hard reset of working tree to discard local changes.
 
