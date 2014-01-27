@@ -16,6 +16,7 @@ Thus will generate id_rsa key for www-data user normally in /var/www/.ssh/ . You
 **pbcopy < /var/www/.ssh/id_rsa.pub**  
 Thus will copy the content to clipboard.
 Add the public key to github. You can find detailed description here: https://help.github.com/articles/generating-ssh-keys
+You can also add the key to specified project in github in project settings->'Deploy Keys'.
 
 3. Finally add github.com to the list of known_hosts for the apache user using command:  
 **sudo -Hu www-data ssh-keyscan github.com >> /var/www/.ssh/known_hosts**
@@ -31,7 +32,7 @@ sync.php supports many projects in the configuration file in projects array.
 Each project has these configuration properties:  
 * *name* – project name  
 * *remote* – remote git repository  
-* *local* – local location of the project(repository and working tree). Must end with  '/'.  
+* *local* – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.
 * *autosyncEnabled* (true/false) – Set it to false to disable updating of the project from remote.  
 * *commandOnFinish* – Which command to execute on successful update. Leave empty if you don't want to execute anything  
 * *urlOnFinish* – Which url to load on successful update. Leave blank if you don't want.  
@@ -47,15 +48,17 @@ sync.php - parameters and examples
 -------------------
 
 Possible parameters are:
+* *project* - specify project. If not specified, sync.php will update all autosync enabled projects in config.json.
 * *branch* – specify branch. By default sync.php uses 'master'.
 * *tag* – specify tag. Can't be used with cleanAndCloneLatestVersion configuration.
 
 You cant't specify together branch and tag.
 
 Examples:  
-*sync.php* – checkouts and pulls branch 'master'  
-*sync.php?branch=b1* – checkouts and pulls branch 'b1'  
-*sync.php?tag=v1.2* – checkouts tag 'v1.2'  
+*sync.php* – checkouts and pulls branch 'master' of all projects in config.json.
+*sync.php?project=test* – checkouts and pulls branch 'master' of project 'test'.
+*sync.php?project=test&branch=b1* – checkouts and pulls branch 'b1' of project 'test'.  
+*sync.php?project=test&tag=v1.2* – checkouts tag 'v1.2' of project 'test' 
 
 sync.php makes hard reset of working tree to discard local changes.
 
