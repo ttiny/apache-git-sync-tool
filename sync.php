@@ -1,4 +1,5 @@
 <?php
+    set_time_limit(3600); // 1 hour
     
     $config = json_decode(file_get_contents("config.json"));
     
