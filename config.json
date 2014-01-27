@@ -1,0 +1,17 @@
+{
+  "supportEmail": "krum.stoilov@gmail.com",
+  "retryOnErrorCount": 2,
+  "projects":
+    [
+     {
+        "name": "test",
+        "remote": "git@github.com:Perennials/test.git",
+        "local": "~/test/",
+        "autosyncEnabled": true,
+        "commandOnFinish": "ls -l",
+        "urlOnFinish": "http://google.com",
+        "cleanAndCloneLatestVersion" : false,
+        "syncSubmodules": false
+     }
+    ]
+}
