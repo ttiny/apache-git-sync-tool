@@ -31,7 +31,7 @@ sync.php supports many projects in the configuration file in projects array.
 Each project has these configuration properties:  
 * *name* – project name  
 * *remote* – remote git repository  
-* *local* – local location of the project(repository and working tree). Must end with  '/'.  
+* *local* – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.
 * *autosyncEnabled* (true/false) – Set it to false to disable updating of the project from remote.  
 * *commandOnFinish* – Which command to execute on successful update. Leave empty if you don't want to execute anything  
 * *urlOnFinish* – Which url to load on successful update. Leave blank if you don't want.  
