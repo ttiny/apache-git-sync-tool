@@ -16,6 +16,7 @@ Thus will generate id_rsa key for www-data user normally in /var/www/.ssh/ . You
 **pbcopy < /var/www/.ssh/id_rsa.pub**  
 Thus will copy the content to clipboard.
 Add the public key to github. You can find detailed description here: https://help.github.com/articles/generating-ssh-keys
+You can also add the key to specified project in github in project settings->'Deploy Keys'.
 
 3. Finally add github.com to the list of known_hosts for the apache user using command:  
 **sudo -Hu www-data ssh-keyscan github.com >> /var/www/.ssh/known_hosts**
