@@ -1,17 +1,29 @@
 {
-  "supportEmail": "",
-  "retryOnErrorCount": 2,
-  "projects":
-    [
-     {
-        "name": "test",
-        "remote": "git@github.com:Perennials/test.git",
-        "local": "~/test/",
-        "autosyncEnabled": true,
-        "commandOnFinish": "ls -l",
-        "urlOnFinish": "http://google.com",
-        "cleanAndCloneLatestVersion" : false,
-        "syncSubmodules": false
-     }
-    ]
+	"supportEmail": "your-email@example.com",
+	"supportEmailFrom": "sync.php@your-web-server.com",
+	"logs": false,
+	"retryOnErrorCount": 2,
+	"projects": {
+		"test": {
+			"remote": "git@github.com:Perennials/test.git",
+			"branches": {
+				"master": {
+					"local": "~/test/master/",
+					"autosync": true,
+					"commandOnFinish": null,
+					"urlOnFinish": null,
+					"syncSubmodules": true,
+					"supportEmail": "your-email@example.com"
+				},
+				"b1": {
+					"local": "~/test/b1/",
+					"autosync": true,
+					"commandOnFinish": null,
+					"urlOnFinish": null,
+					"syncSubmodules": true,
+					"supportEmail": "your-email@example.com"
+				}
+			}
+		}
+	}
 }

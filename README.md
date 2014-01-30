@@ -1,8 +1,9 @@
 apache-git-sync-tool
 ====================
 
-This is a git sync(deploy) tool writen in PHP that is able to receive github notifications and update the local git repositories. 
-It includes a php script file - sync.php and configuration file - config.json.
+This is a git sync(deploy) tool written in PHP that is able to receive github notifications and update the local git repositories.  
+It includes a php script file - sync.php and configuration file - config.json.  
+The local repositories are based on project's branches. The tool creates different local repositories for each specified branch.  
 You will need to setup your apache user to access github.
 
 Setup ssh access to github for the apache user
@@ -28,37 +29,34 @@ You can test ssh access to github:
 Configuration file config.json
 --------------------
 
-sync.php supports many projects in the configuration file in projects array.
-Each project has these configuration properties:  
-* *name* – project name  
-* *remote* – remote git repository  
-* *local* – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.
-* *autosyncEnabled* (true/false) – Set it to false to disable updating of the project from remote.  
+sync.php supports many projects in the configuration file specified in 'projects'.
+Each member of 'projects' is a name of a project and has 'remote' element which specify the remote git repository of the project.  
+You need to add configuration for all project branches that you want to be able to sync. At least one branch should be added to the configuration.  
+Every branch has these configuration elements:    
+* *local* – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.  
+* *autosync* (true/false) – Set it to false to disable updating of the project from remote.  
 * *commandOnFinish* – Which command to execute on successful update. Leave empty if you don't want to execute anything  
-* *urlOnFinish* – Which url to load on successful update. Leave blank if you don't want.  
-* *cleanAndCloneLatestVersion* (true/false) – Setting this to true will delete local directory and recreate it using git pull of latest version of specified branch (master by default). After it will delete local git repository.  
-* *syncSubmodules* (true/false)– tells sync.php to git update submodules.   
+* *urlOnFinish* – Which url to load on successful update. Leave blank if you don't want.   
+* *syncSubmodules* (true/false)– Tells sync.php to git update submodules.   
 
 Other configurable:  
-* *supportEmail* – Email address to notify on error.
-* *retryOnErrorCount* – How many times to retry a git clone/pull/fetch command on error. 
+* *supportEmail* – Email address to notify on error.  
+* *supportEmailFrom* – From email address to send notify on error.  
+* *logs* – (true/false/"path") - Enable writing to a log file. By default file name is auto generated but instead you can specify a path.  
+* *retryOnErrorCount* – How many times to retry a git clone/pull command on error.  
 
 
 sync.php - parameters and examples
 -------------------
 
 Possible parameters are:
-* *project* - specify project. If not specified, sync.php will update all autosync enabled projects in config.json.
-* *branch* – specify branch. By default sync.php uses 'master'.
-* *tag* – specify tag. Can't be used with cleanAndCloneLatestVersion configuration.
-
-You cant't specify together branch and tag.
+* *project* - Specify project name. Required. If not specified in GET parameters, sync.php will try to read it from POST payload json data that is send from github when requesting your web hook url.
+* *branch* – Specify branch. If not specified sync.php will update all project branches in configuration file.
+* *clean* (1/0) –  Setting this to 1 will delete local branch directory and then will make a git pull of latest version of specified branch (master by default). After it will delete local git repository. 
 
 Examples:  
-*sync.php* – checkouts and pulls branch 'master' of all projects in config.json.
-*sync.php?project=test* – checkouts and pulls branch 'master' of project 'test'.
-*sync.php?project=test&branch=b1* – checkouts and pulls branch 'b1' of project 'test'.  
-*sync.php?project=test&tag=v1.2* – checkouts tag 'v1.2' of project 'test' 
+*sync.php?project=test* – Updates all branches from the configuration file config.json of project 'test'.  
+*sync.php?project=test&branch=b1* – Updates branch 'b1' of project 'test'.
 
 sync.php makes hard reset of working tree to discard local changes.
 
