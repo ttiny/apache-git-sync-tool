@@ -52,11 +52,13 @@ sync.php - parameters and examples
 Possible parameters are:
 * *project* - Specify project name. Required. If not specified in GET parameters, sync.php will try to read it from POST payload json data that is send from github when requesting your web hook url.
 * *branch* – Specify branch. If not specified sync.php will update all project branches in configuration file.
-* *clean* (1/0) –  Setting this to 1 will delete local branch directory and then will make a git pull of latest version of specified branch (master by default). After it will delete local git repository. 
+* *clean* (1/0) –  Setting this to 1 will delete local branch directory and then will make a git pull of latest version.
+* *forcesync* (1/0) –  Setting this to 1 will ignore 'autosync'=false option from the configuration file. 
 
 Examples:  
 *sync.php?project=test* – Updates all branches from the configuration file config.json of project 'test'.  
-*sync.php?project=test&branch=b1* – Updates branch 'b1' of project 'test'.
+*sync.php?project=test&branch=master* – Updates branch 'master' of project 'test'.
+*sync.php?project=test&branch=master&clean=1* – Deletes local directory for branch 'master' of project 'test' and then recreates it by cloning latest version.
 
 sync.php makes hard reset of working tree to discard local changes.
 
