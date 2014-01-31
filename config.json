@@ -4,19 +4,19 @@
 	"logs": false,
 	"retryOnErrorCount": 2,
 	"projects": {
-		"test": {
-			"remote": "git@github.com:Perennials/test.git",
+		"articles": {
+			"remote": "git@github.com:Perennials/articles.git",
 			"branches": {
 				"master": {
-					"local": "~/test/master/",
+					"local": "~/articles/master/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
 					"syncSubmodules": true,
 					"supportEmail": "your-email@example.com"
 				},
-				"b1": {
-					"local": "~/test/b1/",
+				"old": {
+					"local": "~/articles/old/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
