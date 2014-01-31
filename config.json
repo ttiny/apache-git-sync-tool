@@ -8,7 +8,7 @@
 			"remote": "git@github.com:Perennials/articles.git",
 			"branches": {
 				"master": {
-					"local": "~/articles/master/",
+					"local": "/var/www/deploy/articles/master/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
@@ -16,7 +16,7 @@
 					"supportEmail": "your-email@example.com"
 				},
 				"old": {
-					"local": "~/articles/old/",
+					"local": "/var/www/deploy/articles/old/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
