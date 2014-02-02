@@ -6,22 +6,21 @@
 	"projects": {
 		"articles": {
 			"remote": "git@github.com:Perennials/articles.git",
+			"supportEmail": "your-email@example.com",
 			"branches": {
 				"master": {
 					"local": "/var/www/deploy/articles/master/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
-					"syncSubmodules": true,
-					"supportEmail": "your-email@example.com"
+					"syncSubmodules": true
 				},
 				"old": {
 					"local": "/var/www/deploy/articles/old/",
 					"autosync": true,
 					"commandOnFinish": null,
 					"urlOnFinish": null,
-					"syncSubmodules": true,
-					"supportEmail": "your-email@example.com"
+					"syncSubmodules": true
 				}
 			}
 		}
