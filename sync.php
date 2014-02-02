@@ -196,6 +196,13 @@
             }
         }
         
+        executeCommand( 'Granting group write permission', 'chmod -R g+w ' . $branchConfig->local );
+        if ( $returnCode ) {
+            // Error, stop execution
+            emailSupport( $branchConfig->supportEmail );
+            break;
+        }
+        
         if($branchConfig->commandOnFinish) {
             $returnCode = _executeCommand('Executing command on finish.', $branchConfig->commandOnFinish);
             if($returnCode) {
