@@ -94,6 +94,13 @@
     
     // Check max execution time
     _output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
+
+    if ( !property_exists( $config, 'supportEmail' ) ) {
+        $config->supportEmail = null;
+    }
+    if ( !property_exists( $config, 'supportEmailFrom' ) ) {
+        $config->supportEmailFrom = null;
+    }
     
     // Check user name and access to github
     _executeCommand('Running the script as user', 'whoami');
@@ -110,6 +117,9 @@
     // Process synchronization of the project //
     
     $projectConfig = $config->projects->$project;
+    if ( !property_exists( $projectConfig, 'supportEmail' ) ) {
+        $projectConfig->supportEmail = $config->supportEmail;
+    }
 
     _output( '<br/><br/>##############################<br/>' );
     _output( '## Processing project: <b>'.$project.'</b> ##' );
@@ -120,6 +130,19 @@
         // If there isn't a given branch we will update all branches
         if($branch && $branch != $branchName) {
             continue;
+        }
+
+        if ( !property_exists( $branchConfig, 'autosync' ) ) {
+            $branchConfig->autosync = true;
+        }
+        if ( !property_exists( $branchConfig, 'syncSubmodules' ) ) {
+            $branchConfig->syncSubmodules = true;
+        }
+        if ( !property_exists( $branchConfig, 'commandOnFinish' ) ) {
+            $branchConfig->commandOnFinish = null;
+        }
+        if ( !property_exists( $branchConfig, 'urlOnFinish' ) ) {
+            $branchConfig->urlOnFinish = null;
         }
         
         _output( '<br/><br/>'.'## Processing branch: <b>'.$branchName.'</b> ##<br/>' );
@@ -136,7 +159,7 @@
         if($clean && is_dir( $branchConfig->local )) {
             if(_executeCommand('Deleting project directory: '.$branchConfig->local, 'rm -rf '.$branchConfig->local)) {
                 // Error (permission)
-                _emailSupport($branchConfig->supportEmail);
+                _emailSupport($projectConfig->supportEmail);
                 break;
             }
             $projectExistsLocaly = false;
@@ -151,7 +174,7 @@
             $returnCode = _executeCommand("Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount);
             if($returnCode) {
                 // Error, stop execution
-                _emailSupport($branchConfig->supportEmail);
+                _emailSupport($projectConfig->supportEmail);
                 break;
             }
         }
@@ -160,7 +183,7 @@
         if(!chdir($branchConfig->local)) {
             _output( "<br/>Error: cant change directory to ".$branchConfig->local );
             // Error, stop execution
-            _emailSupport($branchConfig->supportEmail);
+            _emailSupport($projectConfig->supportEmail);
             break;
         }
         
@@ -171,7 +194,7 @@
             $returnCode = _executeCommand('Reseting', $command);
             if($returnCode) {
                 // Error, stop execution
-                _emailSupport($branchConfig->supportEmail);
+                _emailSupport($projectConfig->supportEmail);
                 break;
             }
             
@@ -180,7 +203,7 @@
             $returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount);
             if($returnCode) {
                 // Error, stop execution
-                _emailSupport($branchConfig->supportEmail);
+                _emailSupport($projectConfig->supportEmail);
                 break;
             }
             
@@ -190,7 +213,7 @@
                 $returnCode = _executeCommand('Update submodules', $command, $config->retryOnErrorCount);
                 if($returnCode) {
                     // Error, stop execution
-                    _emailSupport($branchConfig->supportEmail);
+                    _emailSupport($projectConfig->supportEmail);
                     break;
                 }
             }
@@ -199,7 +222,7 @@
         _executeCommand( 'Granting group write permission', 'chmod -R g+w ' . $branchConfig->local );
         if ( $returnCode ) {
             // Error, stop execution
-            emailSupport( $branchConfig->supportEmail );
+            emailSupport( $projectConfig->supportEmail );
             break;
         }
         
@@ -207,7 +230,7 @@
             $returnCode = _executeCommand('Executing command on finish.', $branchConfig->commandOnFinish);
             if($returnCode) {
                 // Error executing given command
-                _emailSupport($branchConfig->supportEmail, "Error executing given command on finish");
+                _emailSupport($projectConfig->supportEmail, "Error executing given command on finish");
             }
         }
         if($branchConfig->urlOnFinish) {
@@ -215,7 +238,7 @@
             if(file_get_contents($branchConfig->urlOnFinish) === false) {
                 // Error loading given url
                 _output( '<br/> Error on loading the url: ' );
-                _emailSupport($branchConfig->supportEmail, "Error loading given url on finish");
+                _emailSupport($projectConfig->supportEmail, "Error loading given url on finish");
             }
         }
 
@@ -297,6 +320,9 @@
         if($toEmail) {
             _output( '<br/>Send email to support: '.$toEmail );
             $from = $config->supportEmailFrom;
+            if ( empty( $from ) ) {
+                $from = $toEmail;
+            }
             $headers  = "From: $from\r\n";
             $headers .= "Content-type: text/html\r\n";
             mail($toEmail, $subject, $output, $headers);
