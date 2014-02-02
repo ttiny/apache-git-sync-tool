@@ -53,7 +53,7 @@
         }
         $push = json_decode($_POST['payload']);
         $project = $push->repository->name;
-        $refPath = split("/", $push->ref);
+        $refPath = explode("/", $push->ref);
         $branch = $refPath[count($refPath) - 1];
     }
 
