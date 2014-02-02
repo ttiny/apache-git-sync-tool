@@ -35,6 +35,7 @@
     ini_set( 'error_log', dirname( __FILE__ ) . $logfn . '_errors.log' );
     ini_set( 'display_errors', 'On' );
     ini_set( 'log_errors_max_len', 0 );
+    ini_set( 'log_errors', 1 );
     
     set_time_limit(3600); // 1 hour
     
