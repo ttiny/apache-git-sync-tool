@@ -196,7 +196,7 @@
             }
         }
         
-        executeCommand( 'Granting group write permission', 'chmod -R g+w ' . $branchConfig->local );
+        _executeCommand( 'Granting group write permission', 'chmod -R g+w ' . $branchConfig->local );
         if ( $returnCode ) {
             // Error, stop execution
             emailSupport( $branchConfig->supportEmail );
