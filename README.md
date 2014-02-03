@@ -40,20 +40,22 @@ Each member of 'projects' is an object with same name as the project name and ha
 You need to add configuration for each project branch that you want to be able to sync. At least one branch should be added to the configuration.
 
 Every project has these configuration elements:  
+* `remote` - SSH URL of git repository.
 * `supportEmail` – Email address to notify on error occurred when updating this project.  
 * `branches` - Object with per-branch configuration. Only branches listed here will be synced.
 
 Every branch has these configuration elements:
 * `local` – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.  
-* `autosync` (__true__/false) – Set it to false to disable updating of the project from remote.  
+* `autosync` (__`true`__/`false`) – Set it to false to disable updating of the project from remote.  
 * `commandOnFinish` – Which command to execute on successful update. Leave empty if you don't want to execute anything  
 * `urlOnFinish` – Which url to load on successful update. Leave blank if you don't want.   
-* `syncSubmodules` (__true__/false) – Tells sync.php to git update submodules.   
+* `syncSubmodules` (__`true`__/`false`) – Tells sync.php to git update submodules.   
 
 Other global configurable:  
 * `supportEmail` – Global email address to notify on script initialization error.  
 * `supportEmailFrom` – From email address to send notify on error.  
-* `logs` – (true/__false__/"/path/to/specified/direcotry") - Enable writing to a log file. By default file (sync_log_miliseconds.txt) is generated in the same directory where is sync.php. Instead you are able to specify different directory.  
+* `logs` – (__`true`__/`false`/`"/path/to/specified/directory"`) - Enable writing to a log file. By default (`true`) file "sync_log_timestamp.txt" is generated in the same directory where is sync.php. Instead you are able to specify different directory. Logs are generated only in case of errors. `false` will disable logs explicitly in all cases.
+* `debug` - (`true`/__`false`__)this will enable logs to be saved even when there is no error condition.
 * `retryOnErrorCount` – How many times to retry a git clone/pull command on error.  
 
 
@@ -63,8 +65,8 @@ sync.php - parameters and examples
 Possible parameters are:
 * `project` - Specify project name. Required. sync.php will try to read it from POST 'payload' json data that is send from github.com when notifying your script using web hook url. If specified as GET parameter it overrides the project name from the POST 'payload' data.   
 * `branch` – Specify branch. sync.php will try to read it from POST 'payload' json data that is send from github.com when notifying your script using web hook url. If specified as GET parameter it overrides the project branch from the POST 'payload' data. If not specified sync.php will update all project branches in configuration file.
-* `clean` (1/0) –  Setting this to 1 will delete local branch directory and then will make a git pull of latest revision.
-* `forcesync` (1/0) –  Setting this to 1 will ignore 'autosync'=false option from the configuration file.  
+* `clean` (`1`/__`0`__) –  Setting this to 1 will delete local branch directory and then will make a git pull of latest revision.
+* `forcesync` (`1`/__`0`__) –  Setting this to 1 will ignore 'autosync'=false option from the configuration file.  
 
 ##### Examples:
 `sync.php?project=test` – Updates every branch of project 'test' from the configuration file config.json.  
