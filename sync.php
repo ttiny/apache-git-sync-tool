@@ -35,12 +35,13 @@
     ini_set( 'error_log', dirname( __FILE__ ) . $logfn . '_errors.log' );
     ini_set( 'display_errors', 'On' );
     ini_set( 'log_errors_max_len', 0 );
-    ini_set( 'log_errors', 1 );
+    ini_set( 'log_errors', 'On' );
     
     set_time_limit(3600); // 1 hour
     
     // Read configuration file
     $config = json_decode(file_get_contents("config.json"));
+    $hadErrors = false;
 
     $branch = null;
     $project = null;
@@ -95,6 +96,12 @@
     // Check max execution time
     _output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
 
+    if ( !property_exists( $config, 'logs' ) ) {
+        $config->logs = true;
+    }
+    if ( !property_exists( $config, 'debug' ) ) {
+        $config->debug = false;
+    }
     if ( !property_exists( $config, 'supportEmail' ) ) {
         $config->supportEmail = null;
     }
@@ -219,7 +226,7 @@
             }
         }
         
-        _executeCommand( 'Granting group write permission', 'chmod -R g+w ' . $branchConfig->local );
+        _executeCommand( 'Granting group write permission.', 'chmod -R g+w ' . $branchConfig->local );
         if ( $returnCode ) {
             // Error, stop execution
             emailSupport( $projectConfig->supportEmail );
@@ -265,21 +272,33 @@
      *  Writes end html tags and logs to file if enabled in configuration.
      */
     function _atexit () {
-        global $output, $config, $logfn;
         _output( '<br/><br/>##############################' );
         _output( '</body></html>', true );
-        if ( !empty( $config->logs ) ) {
-            if ( $config->logs === true ) {
-                $config->logs = dirname( __FILE__ );
-            }
-            if ( is_string( $config->logs ) ) {
-                $config->logs = realpath( $config->logs );
-                if ( is_dir( $config->logs ) ) {
-                    $fn = $config->logs . $logfn;
-                    @file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
-                    if ( !empty( $_POST['payload'] ) ) {
-                        @file_put_contents( $fn . '_payload.json', $_POST['payload'] );
-                    }
+        _saveLogs();
+    }
+
+    function _saveLogs () {
+        global $output, $config, $logfn, $hadErrors;
+        if ( empty( $config->logs ) || $config->logs === false ) {
+            return;
+        }
+
+        // don't save logs if we don't have errors and we didn't request it explicitly
+        if ( $hadErrors === false && $config->debug !== true ) {
+            return;
+        }
+        
+        if ( $config->logs === true ) {
+            $config->logs = dirname( __FILE__ );
+        }
+        
+        if ( is_string( $config->logs ) ) {
+            $config->logs = realpath( $config->logs );
+            if ( is_dir( $config->logs ) ) {
+                $fn = $config->logs . $logfn;
+                @file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
+                if ( !empty( $_POST['payload'] ) ) {
+                    @file_put_contents( $fn . '_payload.json', $_POST['payload'] );
                 }
             }
         }
@@ -294,12 +313,14 @@
         exec($command.' 2>&1', $result, $returnCode);
         // Output
         _output( '<br/>' );
-        _output( '<span style="font-size: smaller; color: #888888;"">' . @date( 'c' ) . '</span><br/>' );
+        _output( '<span style="font-size: smaller; color: #888888;">' . @date( 'c' ) . '</span><br/>' );
         if($description) {
             _output( $description.'<br/>' );
         }
-        _output( '<span style="font-family: monospace;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">'.$command.'</span><br/>' );
-        _output( '&nbsp;&nbsp;'.implode('<br/> ', $result) . '</span><br/>' );
+        _output(
+            '<div style="font-family: monospace;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">'.$command.'</span><br/>' .
+            '<div style="padding-left: 15px;">' . implode('<br/> ', $result) . '</div></div><br/>'
+        );
         //_output( ' resultCode: '.$returnCode.'<br/>' );
         // Check for error
         if($returnCode && $retryOnErrorCount) {
@@ -316,7 +337,8 @@
      *  Sends text/html email.
      */
     function _emailSupport($toEmail, $subject = "Error processing git pull.") {
-        global $output, $config;
+        global $output, $config, $hadErrors;
+        $hadErrors = true;
         if($toEmail) {
             _output( '<br/>Send email to support: '.$toEmail );
             $from = $config->supportEmailFrom;
