@@ -119,6 +119,9 @@
     
     _output( '<br/>Project: '.$project );
     _output( '<br/>Branch: '.$branch );
+    if ( $config->logs !== false ) {
+        _output( '<br/>Logs: ...' . $logfn . '...' );
+    }
     
     ////////////////////////////////////////////
     // Process synchronization of the project //
@@ -198,7 +201,14 @@
         if($projectExistsLocaly) {
             // Reset. This will reset changed files to the last commit
             $command = 'git reset --hard';
-            $returnCode = _executeCommand('Reseting', $command);
+            $returnCode = _executeCommand('Reseting.', $command);
+            if($returnCode) {
+                // Error, stop execution
+                _emailSupport($projectConfig->supportEmail);
+                break;
+            }
+            $command = 'git submodule foreach --recursive git reset --hard';
+            $returnCode = _executeCommand('Reseting submodules.', $command);
             if($returnCode) {
                 // Error, stop execution
                 _emailSupport($projectConfig->supportEmail);
