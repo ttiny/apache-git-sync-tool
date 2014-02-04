@@ -200,6 +200,15 @@
         // Sync sorce tree
         if($projectExistsLocaly) {
             // Reset. This will reset changed files to the last commit
+
+            $command = 'git fetch origin';
+            $returnCode = _executeCommand('Fetching.', $command);
+            if($returnCode) {
+                // Error, stop execution
+                _emailSupport($projectConfig->supportEmail);
+                break;
+            }
+
             $command = 'git reset --hard';
             $returnCode = _executeCommand('Reseting.', $command);
             if($returnCode) {
@@ -207,6 +216,15 @@
                 _emailSupport($projectConfig->supportEmail);
                 break;
             }
+
+            $command = 'git submodule foreach --recursive git fetch origin';
+            $returnCode = _executeCommand('Fetching submodules.', $command);
+            if($returnCode) {
+                // Error, stop execution
+                _emailSupport($projectConfig->supportEmail);
+                break;
+            }
+
             $command = 'git submodule foreach --recursive git reset --hard';
             $returnCode = _executeCommand('Reseting submodules.', $command);
             if($returnCode) {
@@ -216,8 +234,8 @@
             }
             
             // Pull
-            $command = 'git pull origin' . ' ' . $branchName;
-            $returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount);
+            $command = 'git pull origin ' . $branchName;
+            $returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
             if($returnCode) {
                 // Error, stop execution
                 _emailSupport($projectConfig->supportEmail);
@@ -317,7 +335,7 @@
     /**
      *  Executes given command and writes it to to output.
      */
-    function _executeCommand($description, $command, $retryOnErrorCount = 0) {
+    function _executeCommand($description, $command, $retryOnErrorCount = 0, $customRetry = null, $customArg = null ) {
         global $config;
         // Execute command. Append 2>&1 to show errors.
         exec($command.' 2>&1', $result, $returnCode);
@@ -333,15 +351,41 @@
         );
         //_output( ' resultCode: '.$returnCode.'<br/>' );
         // Check for error
-        if($returnCode && $retryOnErrorCount) {
+        if ( $returnCode ) {
+            if ( is_callable( $customRetry ) ) {
+                $returnCode = $customRetry( $command, implode( "\n", $result ), $customArg );
+            }
             // Sleep some time.
-            sleep(5);
-            // Retry
-            return _executeCommand('', $command, --$retryOnErrorCount);
+            if ( $returnCode && $retryOnErrorCount ) {
+                sleep(5);
+                // Retry
+                return _executeCommand('', $command, --$retryOnErrorCount);
+            }
         }
         
         return $returnCode;
     }
+
+    function _cleanUntrackedStuff ( $command, $result, $branchConfig ) {
+        $ret = preg_match( "/error: The following untracked working tree files would be overwritten by merge:\n([\s\S]*)\nPlease move or remove them before you can merge\./m", $result, $matches );
+        if ( $ret === 1 ) {
+            $torm = array();
+            foreach ( explode( "\n", $matches[1] ) as $fn ) {
+                $fn = trim( $fn );
+                if ( !empty( $fn ) ) {
+                    $torm[] = escapeshellarg( $branchConfig->local . '/' . $fn );
+                }
+            }
+            if ( !empty( $torm ) ) {
+                $torm = 'rm -rf ' . implode( ' ', $torm );
+                if ( !_executeCommand( 'Cleaning conflicting untracked files.', $torm ) ) {
+                    return _executeCommand( 'Retrying pull.', $command );
+                }
+            }
+        }
+        return 1;
+    }
+    
     
     /**
      *  Sends text/html email.
