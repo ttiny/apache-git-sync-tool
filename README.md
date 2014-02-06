@@ -56,6 +56,7 @@ Other global configurable:
 * `supportEmailFrom` – From email address to send notify on error.  
 * `logs` – (__`true`__/`false`/`"/path/to/specified/directory"`) - Enable writing to a log file. By default (`true`) file "sync_log_timestamp.txt" is generated in the same directory where is sync.php. Instead you are able to specify different directory. Logs are generated only in case of errors. `false` will disable logs explicitly in all cases.
 * `debug` - (`true`/__`false`__) - Enable logs to be saved even when there is no error condition.
+* `chmod` - optional arguments for chmod to apply on the repository, e.g. `-R g+w`.
 * `retryOnErrorCount` – How many times to retry a git clone/pull command on error.  
 
 

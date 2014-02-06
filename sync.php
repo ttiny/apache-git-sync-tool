@@ -201,13 +201,13 @@
         if($projectExistsLocaly) {
             // Reset. This will reset changed files to the last commit
 
-            $command = 'git fetch origin';
-            $returnCode = _executeCommand('Fetching.', $command);
-            if($returnCode) {
-                // Error, stop execution
-                _emailSupport($projectConfig->supportEmail);
-                break;
-            }
+            // $command = 'git fetch origin';
+            // $returnCode = _executeCommand('Fetching.', $command);
+            // if($returnCode) {
+            //     // Error, stop execution
+            //     _emailSupport($projectConfig->supportEmail);
+            //     break;
+            // }
 
             $command = 'git reset --hard';
             $returnCode = _executeCommand('Reseting.', $command);
@@ -217,13 +217,13 @@
                 break;
             }
 
-            $command = 'git submodule foreach --recursive git fetch origin';
-            $returnCode = _executeCommand('Fetching submodules.', $command);
-            if($returnCode) {
-                // Error, stop execution
-                _emailSupport($projectConfig->supportEmail);
-                break;
-            }
+            // $command = 'git submodule foreach --recursive git fetch origin';
+            // $returnCode = _executeCommand('Fetching submodules.', $command);
+            // if($returnCode) {
+            //     // Error, stop execution
+            //     _emailSupport($projectConfig->supportEmail);
+            //     break;
+            // }
 
             $command = 'git submodule foreach --recursive git reset --hard';
             $returnCode = _executeCommand('Reseting submodules.', $command);
@@ -255,7 +255,7 @@
         }
         
         if ( !empty( $config->chmod ) ) {
-	        _executeCommand( 'Granting group write permission.', 'chmod ' . $config->chmod . ' ' . $branchConfig->local );
+	        _executeCommand( 'Changing permissions.', 'chmod ' . $config->chmod . ' ' . $branchConfig->local );
 	        if ( $returnCode ) {
 	            // Error, stop execution
 	            emailSupport( $projectConfig->supportEmail );
