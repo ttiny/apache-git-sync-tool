@@ -21,7 +21,7 @@
 <meta charset="UTF-8">
 <title>git sync tool</title>
 </head>
-<body style="background-color: #404040; color: #FFFFFF; padding: 0 10px;">
+<body style="background-color: #404040; color: #FFFFFF;">
 
 <?php
 
@@ -59,6 +59,8 @@
 	}
 
 	register_shutdown_function( '_atexit' );
+
+	_output( '<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">' );
 	
 	//Project
 	if($_GET['project']) {
@@ -169,6 +171,9 @@
 		if ( !property_exists( $branchConfig, 'urlOnFinish' ) ) {
 			$branchConfig->urlOnFinish = null;
 		}
+		if ( !property_exists( $branchConfig, 'supportEmail' ) ) {
+			$branchConfig->supportEmail = null;
+		}
 		
 		_output( '<br/><br/>'.'## Processing branch: <b>'.$branchName.'</b> ##<br/>' );
 		// Check autosync option
@@ -262,7 +267,7 @@
 			}
 		}
 
-		_postFinish( $branchConfig, $projectConfig );
+		_postFinish( $branchConfig, $branchConfig, $projectConfig );
 		_postFinish( $projectConfig, $projectConfig );
 
 		$finishedSomething = true;
@@ -276,15 +281,28 @@
 	////////////////////////////////
 	// Used functions			 //
 
-	function _postFinish ( $config, $emailConfig ) {
+	function _postFinish ( $config, $emailConfig, $projectConfig2 = null ) {
 		
+		$gconfig = $GLOBALS['config'];
+
+		$email = null;
+		if ( $emailConfig instanceof Object && !empty( $emailConfig->supportEmail ) ) {
+			$email = $emailConfig->supportEmail;
+		}
+		else if ( $emailConfig2 instanceof Object && !empty( $emailConfig2->supportEmail ) ) {
+			$email = $emailConfig2->supportEmail;
+		}
+		else if ( $gconfig instanceof Object && !empty( $gconfig->supportEmail ) ) {
+			$email = $gconfig->supportEmail;
+		}
+
 		if ( $config->commandOnFinish ) {
 			$cmds = is_array( $config->commandOnFinish ) ? $config->commandOnFinish : array( $config->commandOnFinish );
 			foreach ( $cmds as $cmd ) {
 				$returnCode = _executeCommand( 'Executing command on finish.', $cmd );
 				if ( $returnCode ) {
 					// Error executing given command
-					_emailSupport( $emailConfig->supportEmail, "Error executing given command on finish" );
+					_emailSupport( $emailConfig->supportEmail );
 					exit( 1 );
 				}
 			}
@@ -297,7 +315,7 @@
 				if ( file_get_contents( $url ) === false ) {
 					// Error loading given url
 					_output( '<br/> Error on loading the url.' );
-					_emailSupport( $emailConfig->supportEmail, "Error loading given url on finish" );
+					_emailSupport( $emailConfig->supportEmail );
 					exit( 1 );
 				}
 			}
@@ -323,7 +341,7 @@
 	 */
 	function _atexit () {
 		_output( '<br/><br/>##############################' );
-		_output( '</body></html>', true );
+		_output( '</div></body></html>', true );
 		_saveLogs();
 	}
 
@@ -368,8 +386,8 @@
 			_output( $description.'<br/>' );
 		}
 		_output(
-			'<div style="font-family: monospace;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">'.$command.'</span><br/>' .
-			'<div style="padding-left: 15px;">' . implode('<br/> ', $result) . '</div></div><br/>'
+			'<div style="font-family: monospace; width: 100%; box-sizing: border-box; overflow-x: auto;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">'.$command.'</span><br/>' .
+			'<pre style="padding-left: 15px;">' . implode('<br/> ', $result) . '</pre></div><br/>'
 		);
 		//_output( ' resultCode: '.$returnCode.'<br/>' );
 		// Check for error
@@ -412,18 +430,25 @@
 	/**
 	 *  Sends text/html email.
 	 */
-	function _emailSupport($toEmail, $subject = "Error processing git pull.") {
+	function _emailSupport ( $toEmails, $subject = "GitHub synchronization failed" ) {
 		global $output, $config, $hadErrors;
 		$hadErrors = true;
-		if($toEmail) {
-			_output( '<br/>Send email to support: '.$toEmail );
-			$from = $config->supportEmailFrom;
+		if ( empty( $toEmails ) ) {
+			return;
+		}
+		if ( !is_array( $toEmails ) ) {
+			$toEmails = array( $toEmails );
+		}
+		_output( '<br/>Send email to support: ' . implode( ', ', $toEmails ) );
+		
+		$from = $config->supportEmailFrom;
+		$headers  = "From: $from\r\n";
+		$headers .= "Content-type: text/html\r\n";
+		foreach ( $toEmails as $toEmail ) {
 			if ( empty( $from ) ) {
 				$from = $toEmail;
 			}
-			$headers  = "From: $from\r\n";
-			$headers .= "Content-type: text/html\r\n";
-			mail($toEmail, $subject, $output, $headers);
+			mail( $toEmail, $subject, $output, $headers );
 		}
 	}
 	

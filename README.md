@@ -41,7 +41,7 @@ You need to add configuration for each project branch that you want to be able t
 
 Top level configuration:  
 * `projects` - Object with per-project configuration. Only projects listed here will be synced.
-* `supportEmail` – Global email address to notify on script initialization error.  
+* `supportEmail` – Global email address to notify on script initialization error. Could be array of addresses.  
 * `supportEmailFrom` – From email address to send notify on error.  
 * `logs` – (__`true`__/`false`/`"/path/to/specified/directory"`) - Enable writing to a log file. By default (`true`) file "sync_log_timestamp.txt" is generated in the same directory where is sync.php. Instead you are able to specify different directory. Logs are generated only in case of errors. `false` will disable logs explicitly in all cases.
 * `debug` - (`true`/__`false`__) - Enable logs to be saved even when there is no error condition.
@@ -53,13 +53,14 @@ Top level configuration:
 Every project has these configuration elements:  
 * `remote` - SSH URL of git repository.
 * `branches` - Object with per-branch configuration. Only branches listed here will be synced.
-* `supportEmail` – Email address to notify on error occurred when updating this project.  
+* `supportEmail` – Email address to notify on error occurred when updating this project. Could be array of addresses.  
 * `commandOnFinish` – Optional command to execute on successful update. Could be array of commands.
 * `urlOnFinish` – Optional URL to load on successful update. Could be array of URLs.
 
 Every branch has these configuration elements:
 * `local` – local location of the project(repository and working tree). Must end with  '/'. Apache user 'www-data' must have write access to the parent directory.  
 * `autosync` (__`true`__/`false`) – Set it to false to disable updating of the project from remote.  
+* `supportEmail` – Email address to notify on branch update error. Could be array of addresses.  
 * `commandOnFinish` – Optional command to execute on successful update. Could be array of commands.
 * `urlOnFinish` – Optional URL to load on successful update. Could be array of URLs.
 * `syncSubmodules` (__`true`__/`false`) – Tells sync.php to git update submodules.   
