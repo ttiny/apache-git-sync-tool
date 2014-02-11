@@ -466,6 +466,7 @@
 		$hadErrors = true;
 		
 		if ( $noemail || empty( $toEmails ) ) {
+			_output( '<br/>An error occured. ' );
 			return;
 		}
 		
