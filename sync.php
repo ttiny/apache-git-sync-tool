@@ -145,11 +145,11 @@
 
 		$finishedSomethingPrj = false;
 
-		_output( '<br/><br/>####<br/>#### Processing project: <b>'.$projectName.'</b><br/>####<br/>' );
-
 		if ( $project != '*' && $project != $projectName ) {
 			continue;
 		}
+
+		_output( '<br/><br/>####<br/>#### Processing project: <b>'.$projectName.'</b><br/>####<br/>' );
 		
 		if ( 
 			 property_exists( $projectConfig, 'autosync' ) && 
