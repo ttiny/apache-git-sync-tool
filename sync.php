@@ -96,6 +96,7 @@
 	$clean = $_GET['clean'];
 	$forcesync = $_GET['forcesync'];
 	$noemail = $_GET['noemail'];
+	$noonfinish = $_GET['noonfinish'];
 	
 	////////////////////////////////
 	// Display useful information //
@@ -307,6 +308,12 @@
 
 	function _postFinish ( $config, $emailConfig, $projectConfig2 = null ) {
 		
+		global $noonfinish;
+
+		if ( $noonfinish ) {
+			return;
+		}
+
 		$gconfig = $GLOBALS['config'];
 
 		$email = null;

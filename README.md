@@ -126,6 +126,8 @@ Possible parameters are:
   false` option from the configuration file.
 * `noemail` (`1`/__`0`__) – Setting this to `1` will cause no emails to be
   sent.
+* `noonfinish` (`1`/__`0`__) – Setting this to `1` will cause no commands
+  to be performed or URLs to be loaded on finish.
 
 
 ##### Examples:
