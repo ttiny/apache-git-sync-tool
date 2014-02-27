@@ -1,7 +1,7 @@
 apache-git-sync-tool
 ====================
 
-This is a git sync(deploy) tool written in PHP that is able to receive GitHub
+This is a git sync (deploy) tool written in PHP that is able to receive GitHub
 notifications (WebHook) and update the local git repository. Also you can make
 your own requests with GET paramteres to specify project and branch. It
 includes a php script file - sync.php and configuration file - config.json.
@@ -92,9 +92,8 @@ Every project has these configuration elements:
   URLs.
 
 Every branch has these configuration elements:
-* `local` – local location of the project(repository and working tree). Must
-  end with  '/'. Apache user 'www-data' must have write access to the parent
-  directory.
+* `local` – local location of the project (repository and working tree).
+  Apache user 'www-data' must have write access to the parent directory.
 * `autosync` (__`true`__/`false`) – Set it to false to disable updating of the
   project from remote.
 * `supportEmail` – Email address to notify on branch update error. Could be
