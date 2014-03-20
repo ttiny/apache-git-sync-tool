@@ -58,6 +58,26 @@
 		$branch = $refPath[count($refPath) - 1];
 	}
 
+	// some defaults
+	if ( !property_exists( $config, 'logs' ) ) {
+		$config->logs = true;
+	}
+	if ( !property_exists( $config, 'debug' ) ) {
+		$config->debug = false;
+	}
+	if ( !property_exists( $config, 'supportEmail' ) ) {
+		$config->supportEmail = null;
+	}
+	if ( !property_exists( $config, 'supportEmailFrom' ) ) {
+		$config->supportEmailFrom = null;
+	}
+	if ( !property_exists( $config, 'commandOnFinish' ) ) {
+		$config->commandOnFinish = null;
+	}
+	if ( !property_exists( $config, 'urlOnFinish' ) ) {
+		$config->urlOnFinish = null;
+	}
+
 	register_shutdown_function( '_atexit' );
 
 	_output( '<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">' );
@@ -116,25 +136,6 @@
 	
 	// Check max execution time
 	//_output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
-
-	if ( !property_exists( $config, 'logs' ) ) {
-		$config->logs = true;
-	}
-	if ( !property_exists( $config, 'debug' ) ) {
-		$config->debug = false;
-	}
-	if ( !property_exists( $config, 'supportEmail' ) ) {
-		$config->supportEmail = null;
-	}
-	if ( !property_exists( $config, 'supportEmailFrom' ) ) {
-		$config->supportEmailFrom = null;
-	}
-	if ( !property_exists( $config, 'commandOnFinish' ) ) {
-		$config->commandOnFinish = null;
-	}
-	if ( !property_exists( $config, 'urlOnFinish' ) ) {
-		$config->urlOnFinish = null;
-	}
 	
 	// Check user name and access to github
 	_executeCommand('Running the script as user', 'whoami');
