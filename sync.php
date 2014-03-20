@@ -31,7 +31,7 @@
 	// Log file name.
 	$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
 
-	error_reporting( E_ALL ^ E_NOTICE );
+	error_reporting( E_ALL );
 	ini_set( 'error_log', dirname( __FILE__ ) . $logfn . '_errors.log' );
 	ini_set( 'display_errors', 'On' );
 	ini_set( 'log_errors_max_len', 0 );
@@ -47,7 +47,7 @@
 	$project = null;
 	
 	// Payload data from github
-	if($_POST['payload']) {
+	if ( !empty( $_POST['payload'] ) ) {
 		// php < 5.4 retardness
 		if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
 			$_POST['payload'] = stripslashes( $_POST['payload'] );
@@ -82,21 +82,26 @@
 
 	//Check for given project in configuration
 	if ( $project != '*' && !property_exists( $config->projects, $project ) ) {
+		
 		_output( 'Unknown project ' . $project . '.' );
 		exit( 1 );
 		
 		//Check for given branch in configuration
-		if ( $branch != '*' && !property_exists( $config->projects->$project->branches, $branch ) ) {
+		if ( $branch != '*' &&
+			!property_exists( $config->projects->$project->branches, $branch ) &&
+			!property_exists( $config->projects, '*' )
+		) {	
+
 			_output( 'Unknown branch ' . $branch . '.' );
 			exit( 1 );
 		}
 	}
 
 	
-	$clean = $_GET['clean'];
-	$forcesync = $_GET['forcesync'];
-	$noemail = $_GET['noemail'];
-	$noonfinish = $_GET['noonfinish'];
+	$clean = array_key_exists( 'clean', $_GET ) ? $_GET['clean'] : null;
+	$forcesync = array_key_exists( 'forcesync', $_GET ) ? $_GET['forcesync'] : null;
+	$noemail = array_key_exists( 'noemail', $_GET ) ? $_GET['noemail'] : null;
+	$noonfinish = array_key_exists( 'noonfinish', $_GET ) ? $_GET['noonfinish'] : null;
 	
 	////////////////////////////////
 	// Display useful information //
@@ -176,12 +181,18 @@
 		foreach ( $projectConfig->branches as $branchName => $branchConfig ) {
 			// If there is a given branch we will update only it.
 			// If there isn't a given branch we will update all branches
-			if ( $branch != '*' && $branch != $branchName ) {
+			if ( $branch != '*' && $branch != $branchName && $branchName != '*' ) {
 				continue;
 			}
 
 			if ( !property_exists( $branchConfig, 'autosync' ) ) {
 				$branchConfig->autosync = true;
+			}
+			if ( !property_exists( $branchConfig, 'bare' ) ) {
+				$branchConfig->bare = false;
+			}
+			if ( !property_exists( $branchConfig, 'deep' ) ) {
+				$branchConfig->deep = false;
 			}
 			if ( !property_exists( $branchConfig, 'syncSubmodules' ) ) {
 				$branchConfig->syncSubmodules = true;
@@ -220,8 +231,12 @@
 			if(!$projectExistsLocaly) {
 				// recursive option to clone submodules
 				$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
+				// options
+				$bare = $branchConfig->bare ? ' --bare ' : '';
+				$branch = $branchName != '*' ? ' --branch '.$branchName.' ' : '';
+				$deep = $branchConfig->deep ? '' : ' --depth 1 ';
 				//Clone only latest version of the given branch
-				$command = 'git clone --depth 1 --branch '.$branchName.$cloneRecursive.' '.$projectConfig->remote.' '.$branchConfig->local;
+				$command = 'git clone '.$deep.$branch.$cloneRecursive.$bare.' '.$projectConfig->remote.' '.$branchConfig->local;
 				$returnCode = _executeCommand("Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount);
 				if($returnCode) {
 					// Error, stop execution
@@ -242,24 +257,28 @@
 			if($projectExistsLocaly) {
 				// Reset. This will reset changed files to the last commit
 
-				$command = 'git reset --hard';
-				$returnCode = _executeCommand('Reseting.', $command);
-				if($returnCode) {
-					// Error, stop execution
-					_emailSupport($projectConfig->supportEmail);
-					break;
-				}
+				if ( !$branchConfig->bare ) {
+					$command = 'git reset --hard';
+					$returnCode = _executeCommand('Reseting.', $command);
+					if($returnCode) {
+						// Error, stop execution
+						_emailSupport($projectConfig->supportEmail);
+						break;
+					}
 
-				$command = 'git submodule foreach --recursive git reset --hard';
-				$returnCode = _executeCommand('Reseting submodules.', $command);
-				if($returnCode) {
-					// Error, stop execution
-					_emailSupport($projectConfig->supportEmail);
-					break;
+					$command = 'git submodule foreach --recursive git reset --hard';
+					$returnCode = _executeCommand('Reseting submodules.', $command);
+					if($returnCode) {
+						// Error, stop execution
+						_emailSupport($projectConfig->supportEmail);
+						break;
+					}
 				}
 				
 				// Pull
-				$command = 'git pull origin ' . $branchName;
+				$branch = $branchName != '*' ? 'origin '.$branchName : '--all';
+				$pull = $branchConfig->bare ? 'fetch' : 'pull';
+				$command = 'git fetch '.$branch;
 				$returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
 				if($returnCode) {
 					// Error, stop execution
@@ -267,7 +286,7 @@
 					break;
 				}
 				
-				if($branchConfig->syncSubmodules) {
+				if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
 					//Submodules
 					$command = 'git submodule update --init --recursive';
 					$returnCode = _executeCommand('Update submodules', $command, $config->retryOnErrorCount);
@@ -276,15 +295,6 @@
 						_emailSupport($projectConfig->supportEmail);
 						break;
 					}
-				}
-			}
-			
-			if ( !empty( $config->chmod ) ) {
-				_executeCommand( 'Changing permissions.', 'chmod ' . $config->chmod . ' ' . $branchConfig->local );
-				if ( $returnCode ) {
-					// Error, stop execution
-					emailSupport( $projectConfig->supportEmail );
-					break;
 				}
 			}
 
@@ -306,7 +316,7 @@
 	////////////////////////////////
 	// Used functions			 //
 
-	function _postFinish ( $config, $emailConfig, $projectConfig2 = null ) {
+	function _postFinish ( $config, $emailConfig, $emailConfig2 = null ) {
 		
 		global $noonfinish;
 

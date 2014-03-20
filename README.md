@@ -54,9 +54,13 @@ Configuration file config.json
 sync.php supports many projects in the configuration file specified in
 'projects' section. Each member of 'projects' is an object with same name as
 the project name and has 'remote' element which specify the remote git
-repository of the project (ssh url). You need to add configuration for each
+repository of the project (SSH url). You need to add configuration for each
 project branch that you want to be able to sync. At least one branch should be
 added to the configuration.
+
+There is a special branch name called "*". Branch will this name will pull
+all branches under the specified directory and update to any branch will
+trigger its update.
 
 Top level configuration:
 * `projects` - Object with per-project configuration. Only projects listed
@@ -71,8 +75,6 @@ Top level configuration:
   `false` will disable logs explicitly in all cases.
 * `debug` - (`true`/__`false`__) - Enable logs to be saved even when there is
   no error condition.
-* `chmod` - optional arguments for chmod to apply on the repository, e.g. `-R
-  g+w`.
 * `retryOnErrorCount` – How many times to retry a git clone/pull command on
   error.
 * `commandOnFinish` – Optional command to execute on successful update. Could
@@ -104,6 +106,8 @@ Every branch has these configuration elements:
   URLs.
 * `syncSubmodules` (__`true`__/`false`) – Tells sync.php to git update
   submodules.
+* `bare` (`true`/__`false`__) - Will make the repository bare.
+* `deep` (`true`/__`false`__) - `false` will make the repository shallow.
 
 
 sync.php - parameters and examples
