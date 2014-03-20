@@ -63,7 +63,7 @@
 	_output( '<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">' );
 	
 	//Project
-	if ( $_GET['project'] ) {
+	if ( !empty( $_GET['project'] ) ) {
 		$project = $_GET['project'];
 	}
 	if ( empty( $project ) ) {
@@ -72,7 +72,7 @@
 	}
 	
 	//Branch
-	if ( $_GET['branch'] ) {
+	if ( !empty( $_GET['branch'] ) ) {
 		$branch = $_GET['branch'];
 	}
 	if ( empty( $branch ) ) {
