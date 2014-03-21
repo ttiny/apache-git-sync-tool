@@ -279,7 +279,7 @@
 				// Pull
 				$branch = $branchName != '*' ? 'origin '.$branchName : '--all';
 				$pull = $branchConfig->bare ? 'fetch' : 'pull';
-				$command = 'git fetch '.$branch;
+				$command = 'git '.$pull.' '.$branch;
 				$returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
 				if($returnCode) {
 					// Error, stop execution
