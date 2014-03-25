@@ -278,7 +278,7 @@
 				
 				// Pull
 				$branchcmd = $branchName != '*' ? 'origin '.$branchName : '"+refs/heads/*:refs/heads/*"';
-				$pull = $branchConfig->bare ? 'fetch' : 'pull';
+				$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
 				$command = 'git '.$pull.' '.$branchcmd;
 				$returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
 				if($returnCode) {
@@ -497,4 +497,4 @@
 		}
 	}
 	
-	?>
+?>
