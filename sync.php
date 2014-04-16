@@ -30,9 +30,10 @@
 	
 	// Log file name.
 	$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
+	$dir = dirname( __FILE__ );
 
 	error_reporting( E_ALL );
-	ini_set( 'error_log', dirname( __FILE__ ) . $logfn . '_errors.log' );
+	ini_set( 'error_log', $dir . $logfn . '_errors.log' );
 	ini_set( 'display_errors', 'On' );
 	ini_set( 'log_errors_max_len', 0 );
 	ini_set( 'log_errors', 'On' );
@@ -40,7 +41,7 @@
 	set_time_limit(3600); // 1 hour
 	
 	// Read configuration file
-	$config = json_decode(file_get_contents("config.json"));
+	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
 	$hadErrors = false;
 
 	$branch = null;
@@ -449,7 +450,7 @@
 	}
 
 	function _cleanUntrackedStuff ( $command, $result, $branchConfig ) {
-		$ret = preg_match( "/error: The following untracked working tree files would be overwritten by merge:\n([\s\S]*)\nPlease move or remove them before you can merge\./m", $result, $matches );
+		$ret = preg_match( "/error: The following untracked working tree files would be overwritten by merge:\n((?:\t[^\n]+\n)*)(?:Aborting|Please move or remove them before you can merge\.)/m", $result, $matches );
 		if ( $ret === 1 ) {
 			$torm = array();
 			foreach ( explode( "\n", $matches[1] ) as $fn ) {
@@ -461,7 +462,7 @@
 			if ( !empty( $torm ) ) {
 				$torm = 'rm -rf ' . implode( ' ', $torm );
 				if ( !_executeCommand( 'Cleaning conflicting untracked files.', $torm ) ) {
-					return _executeCommand( 'Retrying pull.', $command );
+					return _executeCommand( 'Retrying pull.', $command, 10, '_cleanUntrackedStuff', $branchConfig );
 				}
 			}
 		}
