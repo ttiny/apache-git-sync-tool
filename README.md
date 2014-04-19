@@ -24,6 +24,9 @@ mirroring repositories and not for use with real working copy.
 3. Test.
 4. Setup WebHook notifications.
 
+__Note:__ Tested with _git 1.7.10.4_.
+
+
 Setup ssh access to github for the apache user
 ----------------
 
