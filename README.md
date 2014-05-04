@@ -153,8 +153,8 @@ Go to project *Settings -> Service Hooks -> WebHook URLs* and add your url to th
 
 Authors
 ---------
-Krum Stoilov - original author  
-Borislav Peev - ideas, testing, improvements (borislav.asdf at gmail dot com)
+Krum Stoilov - original implementation  
+Borislav Peev (borislav.asdf at gmail dot com)
 
 #### Credits
 https://gist.github.com/oodavid/1809044

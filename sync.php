@@ -1,33 +1,14 @@
-<?php
-/*
- * Free to use, copy and modify.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-?>
 <!DOCTYPE HTML>
 <html lang="en-US">
 <head>
-<meta charset="UTF-8">
-<title>git sync tool</title>
+	<meta charset="UTF-8">
+	<title>git sync tool</title>
 </head>
 <body style="background-color: #404040; color: #FFFFFF;">
 
 <?php
-
 	////////////////////////////////
 	// Init variables			 //
-	
 	// Log file name.
 	$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
 	$dir = dirname( __FILE__ );
@@ -37,26 +18,25 @@
 	ini_set( 'display_errors', 'On' );
 	ini_set( 'log_errors_max_len', 0 );
 	ini_set( 'log_errors', 'On' );
-	
-	set_time_limit(3600); // 1 hour
-	
+
+	set_time_limit( 3600 ); // 1 hour
 	// Read configuration file
 	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
 	$hadErrors = false;
 
 	$branch = null;
 	$project = null;
-	
+
 	// Payload data from github
-	if ( !empty( $_POST['payload'] ) ) {
+	if ( !empty( $_POST[ 'payload' ] ) ) {
 		// php < 5.4 retardness
 		if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
-			$_POST['payload'] = stripslashes( $_POST['payload'] );
+			$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
 		}
-		$push = json_decode($_POST['payload']);
+		$push = json_decode( $_POST[ 'payload' ] );
 		$project = $push->repository->name;
-		$refPath = explode("/", $push->ref);
-		$branch = $refPath[count($refPath) - 1];
+		$refPath = explode( "/", $push->ref );
+		$branch = $refPath[ count( $refPath ) - 1 ];
 	}
 
 	// some defaults
@@ -79,76 +59,75 @@
 		$config->urlOnFinish = null;
 	}
 
-	register_shutdown_function( '_atexit' );
+	register_shutdown_function( '_atExit' );
 
 	_output( '<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">' );
-	
+
 	//Project
-	if ( !empty( $_GET['project'] ) ) {
-		$project = $_GET['project'];
+	if ( !empty( $_GET[ 'project' ] ) ) {
+		$project = $_GET[ 'project' ];
 	}
 	if ( empty( $project ) ) {
-	   _output( 'No project specified.' );
-	   exit( 1 );
+		_output( 'No project specified.' );
+		exit( 1 );
 	}
-	
+
 	//Branch
-	if ( !empty( $_GET['branch'] ) ) {
-		$branch = $_GET['branch'];
+	if ( !empty( $_GET[ 'branch' ] ) ) {
+		$branch = $_GET[ 'branch' ];
 	}
 	if ( empty( $branch ) ) {
-	   _output( 'No branch specified.' );
-	   exit( 1 );
+		_output( 'No branch specified.' );
+		exit( 1 );
 	}
 
 	//Check for given project in configuration
 	if ( $project != '*' && !property_exists( $config->projects, $project ) ) {
-		
+
 		_output( 'Unknown project ' . $project . '.' );
 		exit( 1 );
-		
+
 		//Check for given branch in configuration
 		if ( $branch != '*' &&
-			!property_exists( $config->projects->$project->branches, $branch ) &&
-			!property_exists( $config->projects, '*' )
-		) {	
+		     !property_exists( $config->projects->$project->branches, $branch ) &&
+		     !property_exists( $config->projects, '*' )
+		) {
 
 			_output( 'Unknown branch ' . $branch . '.' );
 			exit( 1 );
 		}
 	}
 
-	
-	$clean = array_key_exists( 'clean', $_GET ) ? $_GET['clean'] : null;
-	$forcesync = array_key_exists( 'forcesync', $_GET ) ? $_GET['forcesync'] : null;
-	$noemail = array_key_exists( 'noemail', $_GET ) ? $_GET['noemail'] : null;
-	$noonfinish = array_key_exists( 'noonfinish', $_GET ) ? $_GET['noonfinish'] : null;
-	
+
+	$clean = array_key_exists( 'clean', $_GET ) ? $_GET[ 'clean' ] : null;
+	$forcesync = array_key_exists( 'forcesync', $_GET ) ? $_GET[ 'forcesync' ] : null;
+	$noemail = array_key_exists( 'noemail', $_GET ) ? $_GET[ 'noemail' ] : null;
+	$noonfinish = array_key_exists( 'noonfinish', $_GET ) ? $_GET[ 'noonfinish' ] : null;
+
 	////////////////////////////////
 	// Display useful information //
 
 	_output( 'Running GitHub synchronization...<br/>' );
 
-	_output( '<br/>Project: '.$project );
-	_output( '<br/>Branch: '.$branch );
+	_output( '<br/>Project: ' . $project );
+	_output( '<br/>Branch: ' . $branch );
 	if ( $config->logs !== false ) {
 		_output( '<br/>Logs: ...' . $logfn . '...<br/>' );
 	}
-	
+
 	// Check max execution time
 	//_output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
-	
 	// Check user name and access to github
-	_executeCommand('Running the script as user', 'whoami');
-	if(_executeCommand('Testing ssh access to github', 'ssh -T git@github.com') == 255) {
+	_executeCommand( 'Running the script as user', 'whoami' );
+	if ( _executeCommand( 'Testing ssh access to github', 'ssh -T git@github.com' ) == 255 ) {
 		// Host key verification failed.
-		_emailSupport($config->supportEmail);
+		_emailSupport( $config->supportEmail );
 		exit( 1 );
 	}
-	
+
 	////////////////////////////////////////////
 	// Process synchronization of the project //
-	
+
 	foreach ( $config->projects as $projectName => $projectConfig ) {
 
 		$finishedSomethingPrj = false;
@@ -157,13 +136,13 @@
 			continue;
 		}
 
-		_output( '<br/><br/>####<br/>#### Processing project: <b>'.$projectName.'</b><br/>####<br/>' );
-		
-		if ( 
-			 property_exists( $projectConfig, 'autosync' ) && 
+		_output( '<br/><br/>####<br/>#### Processing project: <b>' . $projectName . '</b><br/>####<br/>' );
+
+		if ( property_exists( $projectConfig, 'autosync' ) &&
 		     $projectConfig->autosync === false &&
-		     !$forcesync ) {
-			
+		     !$forcesync
+		) {
+
 			_output( '<br/>Autosync is disabled for this projects in the configuration file. Skipping.' );
 			continue;
 		}
@@ -177,9 +156,9 @@
 		if ( !property_exists( $projectConfig, 'urlOnFinish' ) ) {
 			$projectConfig->urlOnFinish = null;
 		}
-		
+
 		$finishedSomething = false;
-		
+
 		foreach ( $projectConfig->branches as $branchName => $branchConfig ) {
 			// If there is a given branch we will update only it.
 			// If there isn't a given branch we will update all branches
@@ -212,93 +191,93 @@
 			if ( !property_exists( $branchConfig, 'supportEmail' ) ) {
 				$branchConfig->supportEmail = null;
 			}
-			
-			_output( '<br/><br/>### Processing branch: <b>'.$branchName.'</b><br/>' );
+
+			_output( '<br/><br/>### Processing branch: <b>' . $branchName . '</b><br/>' );
 			// Check autosync option
-			if(!$branchConfig->autosync && !$forcesync) {
+			if ( !$branchConfig->autosync && !$forcesync ) {
 				// Autosync is disabled.
 				_output( '<br/>Autosync is disabled for this branch in the configuration file. Skipping.' );
 				continue;
 			}
-			
-			$projectExistsLocaly = file_exists($branchConfig->local);
-			
+
+			$projectExistsLocaly = file_exists( $branchConfig->local );
+
 			// Check config to full clean local direcotry.
-			if($clean && is_dir( $branchConfig->local )) {
-				if(_executeCommand('Deleting project directory: '.$branchConfig->local, 'rm -rf '.$branchConfig->local)) {
+			if ( $clean && is_dir( $branchConfig->local ) ) {
+				if ( _executeCommand( 'Deleting project directory: ' . $branchConfig->local, 'rm -rf ' . $branchConfig->local ) ) {
 					// Error (permission)
-					_emailSupport($projectConfig->supportEmail);
+					_emailSupport( $projectConfig->supportEmail );
 					break;
 				}
 				$projectExistsLocaly = false;
 			}
-			
-			
-			if(!$projectExistsLocaly) {
+
+
+			if ( !$projectExistsLocaly ) {
 				// recursive option to clone submodules
 				$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
 				// options
 				$bare = $branchConfig->bare ? ' --bare ' : '';
-				$branch = $branchName != '*' ? ' --branch '.$branchName.' ' : '';
+				$branch = $branchName != '*' ? ' --branch ' . $branchName . ' ' : '';
 				$deep = $branchConfig->deep ? '' : ' --depth 1 ';
 				//Clone only latest version of the given branch
-				$command = 'git clone '.$deep.$branch.$cloneRecursive.$bare.' '.$projectConfig->remote.' '.$branchConfig->local;
-				$returnCode = _executeCommand("Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount);
-				if($returnCode) {
+				$command = 'git clone ' . $deep . $branch . $cloneRecursive . $bare . ' ' . $projectConfig->remote . ' ' . $branchConfig->local;
+				$returnCode = _executeCommand( "Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount );
+				if ( $returnCode ) {
 					// Error, stop execution
-					_emailSupport($projectConfig->supportEmail);
+					_emailSupport( $projectConfig->supportEmail );
 					break;
 				}
 			}
-			
+
 			// Change directory to project location
-			if(!chdir($branchConfig->local)) {
-				_output( "<br/>Error: cant change directory to ".$branchConfig->local );
+			if ( !chdir( $branchConfig->local ) ) {
+				_output( '<br/>Error: cant change directory to ' . $branchConfig->local );
 				// Error, stop execution
-				_emailSupport($projectConfig->supportEmail);
+				_emailSupport( $projectConfig->supportEmail );
 				break;
 			}
-			
+
 			// Sync sorce tree
-			if($projectExistsLocaly) {
+			if ( $projectExistsLocaly ) {
 				// Reset. This will reset changed files to the last commit
 
 				if ( !$branchConfig->bare ) {
 					$command = 'git reset --hard';
-					$returnCode = _executeCommand('Reseting.', $command);
-					if($returnCode) {
+					$returnCode = _executeCommand( 'Reseting.', $command );
+					if ( $returnCode ) {
 						// Error, stop execution
-						_emailSupport($projectConfig->supportEmail);
+						_emailSupport( $projectConfig->supportEmail );
 						break;
 					}
 
 					$command = 'git submodule foreach --recursive git reset --hard';
-					$returnCode = _executeCommand('Reseting submodules.', $command);
-					if($returnCode) {
+					$returnCode = _executeCommand( 'Reseting submodules.', $command );
+					if ( $returnCode ) {
 						// Error, stop execution
-						_emailSupport($projectConfig->supportEmail);
+						_emailSupport( $projectConfig->supportEmail );
 						break;
 					}
 				}
-				
+
 				// Pull
-				$branchcmd = $branchName != '*' ? 'origin '.$branchName : 'origin "+refs/heads/*:refs/heads/*"';
+				$branchcmd = $branchName != '*' ? 'origin ' . $branchName : 'origin "+refs/heads/*:refs/heads/*"';
 				$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
-				$command = 'git '.$pull.' '.$branchcmd;
-				$returnCode = _executeCommand('Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
-				if($returnCode) {
+				$command = 'git ' . $pull . ' ' . $branchcmd;
+				$returnCode = _executeCommand( 'Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
+				if ( $returnCode ) {
 					// Error, stop execution
-					_emailSupport($projectConfig->supportEmail);
+					_emailSupport( $projectConfig->supportEmail );
 					break;
 				}
-				
+
 				if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
 					//Submodules
 					$command = 'git submodule update --init --recursive';
-					$returnCode = _executeCommand('Update submodules', $command, $config->retryOnErrorCount);
-					if($returnCode) {
+					$returnCode = _executeCommand( 'Update submodules', $command, $config->retryOnErrorCount );
+					if ( $returnCode ) {
 						// Error, stop execution
-						_emailSupport($projectConfig->supportEmail);
+						_emailSupport( $projectConfig->supportEmail );
 						break;
 					}
 				}
@@ -318,19 +297,19 @@
 	if ( $finishedSomething ) {
 		_postFinish( $config, $config );
 	}
-	
+
 	////////////////////////////////
 	// Used functions			 //
 
 	function _postFinish ( $config, $emailConfig, $emailConfig2 = null ) {
-		
+
 		global $noonfinish;
 
 		if ( $noonfinish ) {
 			return;
 		}
 
-		$gconfig = $GLOBALS['config'];
+		$gconfig = $GLOBALS[ 'config' ];
 
 		$email = null;
 		if ( $emailConfig instanceof Object && !empty( $emailConfig->supportEmail ) ) {
@@ -354,7 +333,7 @@
 				}
 			}
 		}
-		
+
 		if ( $config->urlOnFinish ) {
 			$urls = is_array( $config->urlOnFinish ) ? $config->urlOnFinish : array( $config->urlOnFinish );
 			foreach ( $urls as $url ) {
@@ -368,25 +347,25 @@
 			}
 		}
 	}
-	
+
 	/**
 	 *  Writes given string to the output.
 	 */
 	function _output ( $str, $last = false ) {
 		global $output, $log;
 		$output .= $str;
-		echo $str;
+		echo str_replace( '<br/>', "<br/>\n", $str );
 		if ( !$last ) {
 			echo '<script type="text/javascript">window.scrollTo( 0, document.body.offsetHeight );</script>';
 		}
 		flush();
 	}
-	
+
 	/**
 	 *  This function executes at the end of php script.
 	 *  Writes end html tags and logs to file if enabled in configuration.
 	 */
-	function _atexit () {
+	function _atExit () {
 		_output( '<br/><br/>##########' );
 		_output( '</div></body></html>', true );
 		_saveLogs();
@@ -402,39 +381,39 @@
 		if ( $hadErrors === false && $config->debug !== true ) {
 			return;
 		}
-		
+
 		if ( $config->logs === true ) {
 			$config->logs = dirname( __FILE__ );
 		}
-		
+
 		if ( is_string( $config->logs ) ) {
 			$config->logs = realpath( $config->logs );
 			if ( is_dir( $config->logs ) ) {
 				$fn = $config->logs . $logfn;
 				@file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
-				if ( !empty( $_POST['payload'] ) ) {
-					@file_put_contents( $fn . '_payload.json', $_POST['payload'] );
+				if ( !empty( $_POST[ 'payload' ] ) ) {
+					@file_put_contents( $fn . '_payload.json', $_POST[ 'payload' ] );
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 *  Executes given command and writes it to to output.
 	 */
-	function _executeCommand($description, $command, $retryOnErrorCount = 0, $customRetry = null, $customArg = null ) {
+	function _executeCommand ( $description, $command, $retryOnErrorCount = 0, $customRetry = null, $customArg = null ) {
 		global $config;
 		// Execute command. Append 2>&1 to show errors.
-		exec($command.' 2>&1', $result, $returnCode);
+		exec( $command . ' 2>&1', $result, $returnCode );
 		// Output
 		_output( '<br/>' );
 		_output( '<span style="font-size: smaller; color: #888888;">' . @date( 'c' ) . '</span><br/>' );
-		if($description) {
-			_output( $description.'<br/>' );
+		if ( $description ) {
+			_output( $description . '<br/>' );
 		}
 		_output(
-			'<div style="font-family: monospace; width: 100%; box-sizing: border-box; overflow-x: auto;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">'.$command.'</span><br/>' .
-			'<pre style="padding-left: 15px;">' . implode('<br/> ', $result) . '</pre></div><br/>'
+				'<div style="font-family: monospace; width: 100%; box-sizing: border-box; overflow-x: auto;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">' . $command . '</span><br/>' .
+				'<pre style="padding-left: 15px;">' . implode( '<br/> ', $result ) . '</pre></div><br/>'
 		);
 		//_output( ' resultCode: '.$returnCode.'<br/>' );
 		// Check for error
@@ -444,12 +423,12 @@
 			}
 			// Sleep some time.
 			if ( $returnCode && $retryOnErrorCount ) {
-				sleep(5);
+				sleep( 5 );
 				// Retry
-				return _executeCommand('', $command, --$retryOnErrorCount);
+				return _executeCommand( '', $command, --$retryOnErrorCount );
 			}
 		}
-		
+
 		return $returnCode;
 	}
 
@@ -457,7 +436,7 @@
 		$ret = preg_match( "/error: The following untracked working tree files would be overwritten by merge:\n((?:\t[^\n]+\n)*)(?:Aborting|Please move or remove them before you can merge\.)/m", $result, $matches );
 		if ( $ret === 1 ) {
 			$torm = array();
-			foreach ( explode( "\n", $matches[1] ) as $fn ) {
+			foreach ( explode( "\n", $matches[ 1 ] ) as $fn ) {
 				$fn = trim( $fn );
 				if ( !empty( $fn ) ) {
 					$torm[] = escapeshellarg( $branchConfig->local . '/' . $fn );
@@ -472,27 +451,26 @@
 		}
 		return 1;
 	}
-	
-	
+
 	/**
 	 *  Sends text/html email.
 	 */
 	function _emailSupport ( $toEmails, $subject = "GitHub synchronization failed" ) {
 		global $output, $config, $hadErrors, $noemail;
 		$hadErrors = true;
-		
+
 		if ( $noemail || empty( $toEmails ) ) {
 			_output( '<br/>An error occured. ' );
 			return;
 		}
-		
+
 		if ( !is_array( $toEmails ) ) {
 			$toEmails = array( $toEmails );
 		}
 		_output( '<br/>Send email to support: ' . implode( ', ', $toEmails ) );
-		
+
 		$from = $config->supportEmailFrom;
-		$headers  = "From: $from\r\n";
+		$headers = "From: $from\r\n";
 		$headers .= "Content-type: text/html\r\n";
 		foreach ( $toEmails as $toEmail ) {
 			if ( empty( $from ) ) {
@@ -501,5 +479,4 @@
 			mail( $toEmail, $subject, $output, $headers );
 		}
 	}
-	
 ?>
