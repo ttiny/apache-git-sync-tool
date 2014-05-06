@@ -162,11 +162,8 @@
 		foreach ( $projectConfig->branches as $branchName => $branchConfig ) {
 			// If there is a given branch we will update only it.
 			// If there isn't a given branch we will update all branches
-			if ( $branch != '*' && $branch != $branchName ) {
-				continue;
-			}
 
-			if ( $branchName == '*' ) {
+			if ( $branch != '*' && $branchName != '*' && $branch != $branchName ) {
 				continue;
 			}
 
