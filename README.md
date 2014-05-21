@@ -78,6 +78,8 @@ Top level configuration:
   `false` will disable logs explicitly in all cases.
 * `debug` - (`true`/__`false`__) - Enable logs to be saved even when there is
   no error condition.
+* `debugAll` - (`true`/__`false`__) - Write even more logs, the PHP request and
+  server environment variables.
 * `retryOnErrorCount` – How many times to retry a git clone/pull command on
   error.
 * `commandOnFinish` – Optional command to execute on successful update. Could
