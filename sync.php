@@ -3,6 +3,11 @@
 <head>
 	<meta charset="UTF-8">
 	<title>git sync tool</title>
+	<script type="text/javascript">
+	function $ () {
+		window.scrollTo( 0, document.body.offsetHeight );
+	}
+	</script>
 </head>
 <body style="background-color: #404040; color: #FFFFFF;">
 
@@ -22,23 +27,6 @@
 	set_time_limit( 3600 ); // 1 hour
 	// Read configuration file
 	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
-	$hadErrors = false;
-
-	$branch = null;
-	$project = null;
-
-	// Payload data from github
-	if ( !empty( $_POST[ 'payload' ] ) ) {
-		// php < 5.4 retardness
-		if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
-			$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
-		}
-		$push = json_decode( $_POST[ 'payload' ] );
-		$project = $push->repository->name;
-		$refPath = explode( "/", $push->ref );
-		$branch = $refPath[ count( $refPath ) - 1 ];
-	}
-
 	// some defaults
 	if ( !property_exists( $config, 'logs' ) ) {
 		$config->logs = true;
@@ -57,6 +45,36 @@
 	}
 	if ( !property_exists( $config, 'urlOnFinish' ) ) {
 		$config->urlOnFinish = null;
+	}
+
+	$hadErrors = false;
+
+	if ( !empty( $config->debugAll ) && $config->debugAll === true ) {
+		$dir = _getLogsDir() . $logfn;
+		file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER, JSON_PRETTY_PRINT ) );
+		file_put_contents( $dir . '_POST.json', json_encode( $_POST, JSON_PRETTY_PRINT ) );
+		file_put_contents( $dir . '_GET.json', json_encode( $_GET, JSON_PRETTY_PRINT ) );
+		file_put_contents( $dir . '_php_input.txt', file_get_contents( 'php://input' ) );
+	}
+
+	$branch = null;
+	$project = null;
+
+	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
+		// Payload data from github
+		if ( !empty( $_POST[ 'payload' ] ) ) {
+			// php < 5.4 retardness
+			if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
+				$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
+			}
+			$push = json_decode( $_POST[ 'payload' ] );
+		}
+		else {
+			$push = json_decode( file_get_contents( 'php://input' ) );
+		}
+		$project = $push->repository->name;
+		$refPath = explode( "/", $push->ref );
+		$branch = $refPath[ count( $refPath ) - 1 ];
 	}
 
 	register_shutdown_function( '_atExit' );
@@ -353,7 +371,7 @@
 		$output .= $str;
 		echo str_replace( '<br/>', "<br/>\n", $str );
 		if ( !$last ) {
-			echo '<script type="text/javascript">window.scrollTo( 0, document.body.offsetHeight );</script>';
+			echo "\n",'<script>$()</script>',"\n";
 		}
 		flush();
 	}
@@ -368,6 +386,17 @@
 		_saveLogs();
 	}
 
+	function _getLogsDir () {
+		global $config;
+		if ( !empty( $config->logs ) && is_string( $config->logs ) ) {
+			$config->logs = realpath( $config->logs );
+			if ( is_dir( $config->logs ) ) {
+				return $config->logs;
+			}
+		}
+		return dirname( __FILE__ );
+	}
+
 	function _saveLogs () {
 		global $output, $config, $logfn, $hadErrors;
 		if ( empty( $config->logs ) || $config->logs === false ) {
@@ -379,19 +408,10 @@
 			return;
 		}
 
-		if ( $config->logs === true ) {
-			$config->logs = dirname( __FILE__ );
-		}
-
-		if ( is_string( $config->logs ) ) {
-			$config->logs = realpath( $config->logs );
-			if ( is_dir( $config->logs ) ) {
-				$fn = $config->logs . $logfn;
-				@file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
-				if ( !empty( $_POST[ 'payload' ] ) ) {
-					@file_put_contents( $fn . '_payload.json', $_POST[ 'payload' ] );
-				}
-			}
+		$fn = _getLogsDir() . $logfn;
+		@file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
+		if ( !empty( $_POST[ 'payload' ] ) ) {
+			@file_put_contents( $fn . '_payload.json', $_POST[ 'payload' ] );
 		}
 	}
 
