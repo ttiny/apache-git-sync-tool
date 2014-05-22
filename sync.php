@@ -1,16 +1,3 @@
-<!DOCTYPE HTML>
-<html lang="en-US">
-<head>
-	<meta charset="UTF-8">
-	<title>git sync tool</title>
-	<script type="text/javascript">
-	function $ () {
-		window.scrollTo( 0, document.body.offsetHeight );
-	}
-	</script>
-</head>
-<body style="background-color: #404040; color: #FFFFFF;">
-
 <?php
 	////////////////////////////////
 	// Init variables			 //
@@ -59,8 +46,13 @@
 
 	$branch = null;
 	$project = null;
+	// if things come from github don't output html
+	$shouldBuffer = false;
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
+		$shouldBuffer = true;
+		header( 'Content-Type: text/plain' );
+		ob_start();
 		// Payload data from github
 		if ( !empty( $_POST[ 'payload' ] ) ) {
 			// php < 5.4 retardness
@@ -79,7 +71,24 @@
 
 	register_shutdown_function( '_atExit' );
 
-	_output( '<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">' );
+
+///// start the output
+?><!DOCTYPE HTML>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8">
+	<title>git sync tool</title>
+	<script type="text/javascript">
+	function $ () {
+		window.scrollTo( 0, document.body.offsetHeight );
+	}
+	</script>
+</head>
+<body style="background-color: #404040; color: #FFFFFF;">
+<div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">
+<?
+
+	flush();
 
 	//Project
 	if ( !empty( $_GET[ 'project' ] ) ) {
@@ -367,11 +376,15 @@
 	 *  Writes given string to the output.
 	 */
 	function _output ( $str, $last = false ) {
-		global $output, $log;
+		global $output, $log, $shouldBuffer;
 		$output .= $str;
 		echo str_replace( '<br/>', "<br/>\n", $str );
 		if ( !$last ) {
 			echo "\n",'<script>$()</script>',"\n";
+		}
+		else if ( $shouldBuffer && $last ) {
+			ob_end_clean();
+			echo _makeTxt( $output );
 		}
 		flush();
 	}
@@ -397,6 +410,10 @@
 		return dirname( __FILE__ );
 	}
 
+	function _makeTxt ( $output ) {
+		return strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) );
+	}
+
 	function _saveLogs () {
 		global $output, $config, $logfn, $hadErrors;
 		if ( empty( $config->logs ) || $config->logs === false ) {
@@ -409,7 +426,7 @@
 		}
 
 		$fn = _getLogsDir() . $logfn;
-		@file_put_contents( $fn . '.txt', strip_tags( str_replace( '&nbsp;', ' ', str_replace( '<br/>', "\n", $output ) ) ) );
+		@file_put_contents( $fn . '.txt', _makeTxt( $output ) );
 		if ( !empty( $_POST[ 'payload' ] ) ) {
 			@file_put_contents( $fn . '_payload.json', $_POST[ 'payload' ] );
 		}
@@ -488,7 +505,7 @@
 
 		$from = $config->supportEmailFrom;
 		$headers = "From: $from\r\n";
-		$headers .= "Content-type: text/html\r\n";
+		$headers .= "Content-Type: text/html\r\n";
 		foreach ( $toEmails as $toEmail ) {
 			if ( empty( $from ) ) {
 				$from = $toEmail;
