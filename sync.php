@@ -38,9 +38,17 @@
 
 	if ( !empty( $config->debugAll ) && $config->debugAll === true ) {
 		$dir = _getLogsDir() . $logfn;
-		file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER, JSON_PRETTY_PRINT ) );
-		file_put_contents( $dir . '_POST.json', json_encode( $_POST, JSON_PRETTY_PRINT ) );
-		file_put_contents( $dir . '_GET.json', json_encode( $_GET, JSON_PRETTY_PRINT ) );
+		// php 5.2 compatibility
+		if ( defined( 'JSON_PRETTY_PRINT' ) ) {
+			file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER, JSON_PRETTY_PRINT ) );
+			file_put_contents( $dir . '_POST.json', json_encode( $_POST, JSON_PRETTY_PRINT ) );
+			file_put_contents( $dir . '_GET.json', json_encode( $_GET, JSON_PRETTY_PRINT ) );
+		}
+		else {
+			file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER ) );
+			file_put_contents( $dir . '_POST.json', json_encode( $_POST ) );
+			file_put_contents( $dir . '_GET.json', json_encode( $_GET ) );
+		}
 		file_put_contents( $dir . '_php_input.txt', file_get_contents( 'php://input' ) );
 	}
 
