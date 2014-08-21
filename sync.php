@@ -14,25 +14,6 @@
 	set_time_limit( 3600 ); // 1 hour
 	// Read configuration file
 	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
-	// some defaults
-	if ( !property_exists( $config, 'logs' ) ) {
-		$config->logs = true;
-	}
-	if ( !property_exists( $config, 'debug' ) ) {
-		$config->debug = false;
-	}
-	if ( !property_exists( $config, 'supportEmail' ) ) {
-		$config->supportEmail = null;
-	}
-	if ( !property_exists( $config, 'supportEmailFrom' ) ) {
-		$config->supportEmailFrom = null;
-	}
-	if ( !property_exists( $config, 'commandOnFinish' ) ) {
-		$config->commandOnFinish = null;
-	}
-	if ( !property_exists( $config, 'urlOnFinish' ) ) {
-		$config->urlOnFinish = null;
-	}
 
 	$hadErrors = false;
 
@@ -56,6 +37,7 @@
 	$project = null;
 	// if things come from github don't output html
 	$shouldBuffer = false;
+	$payload = null;
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
 		$shouldBuffer = true;
@@ -67,15 +49,17 @@
 			if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
 				$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
 			}
-			$push = json_decode( $_POST[ 'payload' ] );
+			$payload = json_decode( $_POST[ 'payload' ] );
 		}
 		else {
-			$push = json_decode( file_get_contents( 'php://input' ) );
+			$payload = json_decode( file_get_contents( 'php://input' ) );
 		}
-		$project = $push->repository->name;
-		$refPath = explode( "/", $push->ref );
+		$project = $payload->repository->name;
+		$refPath = explode( "/", $payload->ref );
 		$branch = $refPath[ count( $refPath ) - 1 ];
 	}
+
+	InitConfig( $config );
 
 	register_shutdown_function( '_atExit' );
 
@@ -116,28 +100,12 @@
 		exit( 1 );
 	}
 
-	//Check for given project in configuration
-	if ( $project != '*' && !property_exists( $config->projects, $project ) ) {
-
-		_output( 'Unknown project ' . $project . '.' );
-		exit( 1 );
-
-		//Check for given branch in configuration
-		if ( $branch != '*' &&
-		     !property_exists( $config->projects->$project->branches, $branch ) &&
-		     !property_exists( $config->projects, '*' )
-		) {
-
-			_output( 'Unknown branch ' . $branch . '.' );
-			exit( 1 );
-		}
-	}
-
 
 	$clean = array_key_exists( 'clean', $_GET ) ? $_GET[ 'clean' ] : null;
 	$forcesync = array_key_exists( 'forcesync', $_GET ) ? $_GET[ 'forcesync' ] : null;
 	$noemail = array_key_exists( 'noemail', $_GET ) ? $_GET[ 'noemail' ] : null;
 	$noonfinish = array_key_exists( 'noonfinish', $_GET ) ? $_GET[ 'noonfinish' ] : null;
+	$testMode = array_key_exists( 'test', $_GET ) ? $_GET[ 'test' ] : null;
 
 	////////////////////////////////
 	// Display useful information //
@@ -153,8 +121,8 @@
 	// Check max execution time
 	//_output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
 	// Check user name and access to github
-	_executeCommand( 'Running the script as user', 'whoami' );
-	if ( _executeCommand( 'Testing ssh access to github', 'ssh -T git@github.com' ) == 255 ) {
+	_executeCommandReal( 'Running the script as user', 'whoami' );
+	if ( _executeCommandReal( 'Testing ssh access to github', 'ssh -T git@github.com' ) == 255 ) {
 		// Host key verification failed.
 		_emailSupport( $config->supportEmail );
 		exit( 1 );
@@ -163,166 +131,213 @@
 	////////////////////////////////////////////
 	// Process synchronization of the project //
 
-	foreach ( $config->projects as $projectName => $projectConfig ) {
+	$projectOg = $project;
+	$branchOg = $branch;
 
-		$finishedSomethingPrj = false;
-
-		if ( $project != '*' && $project != $projectName ) {
-			continue;
+	$projects = [ $projectOg ];
+	if ( $projectOg === '*' ) {
+		$projects = [];
+		foreach ( $config->projects as $name => $value ) {
+			if ( $name[ 0 ] === '~' ) {
+				$projects = array_merge( $projects, $value->matches );
+			}
+			else {
+				$projects[] = $name;
+			}
 		}
-
-		_output( '<br/><br/>####<br/>#### Processing project: <b>' . $projectName . '</b><br/>####<br/>' );
-
-		if ( property_exists( $projectConfig, 'autosync' ) &&
-		     $projectConfig->autosync === false &&
-		     !$forcesync
-		) {
-
-			_output( '<br/>Autosync is disabled for this projects in the configuration file. Skipping.' );
-			continue;
+	}
+	else if ( $projectOg[ 0 ] === '~' ) {
+		$pattern = '/^' . substr( $projectOg, 1 ) . '$/';
+		$projects = [];
+		foreach ( $config->projects as $name => $value ) {
+			if ( $name[ 0 ] === '~' ) {
+				foreach ( $value->matches as $name ) {
+					if ( preg_match( $pattern, $name ) > 0 ) {
+						$projects[] = $name;
+					}
+				}
+			}
+			else {
+				if ( preg_match( $pattern, $name ) > 0 ) {
+					$projects[] = $name;
+				}
+			}
 		}
+	}
 
-		if ( !property_exists( $projectConfig, 'supportEmail' ) ) {
-			$projectConfig->supportEmail = $config->supportEmail;
-		}
-		if ( !property_exists( $projectConfig, 'commandOnFinish' ) ) {
-			$projectConfig->commandOnFinish = null;
-		}
-		if ( !property_exists( $projectConfig, 'urlOnFinish' ) ) {
-			$projectConfig->urlOnFinish = null;
-		}
+	$finishedSomething = false;
 
-		$finishedSomething = false;
+	foreach ( $projects as $project ) {
 
-		foreach ( $projectConfig->branches as $branchName => $branchConfig ) {
-			// If there is a given branch we will update only it.
-			// If there isn't a given branch we will update all branches
+		foreach ( $config->projects as $projectName => $projectConfigOg ) {
 
-			if ( $branch != '*' && $branchName != '*' && $branch != $branchName ) {
+			$finishedSomethingPrj = false;
+
+			$matchesProject = null;
+			if ( !MatchName( $project, $projectName, $matchesProject, $projectConfigOg ) ) {
+				continue;
+			}
+			
+			$projectName = $matchesProject[ 0 ];
+			$projectConfig = InitProjectConfig( $config, $projectConfigOg, $matchesProject );
+
+			_output( '<br/><br/>####<br/>#### Processing project: <b>' . $projectName . '</b><br/>####<br/>' );
+
+			$branches = [ $branchOg ];
+			// loop all branches
+			if ( $branchOg === '*' || $branchOg[ 0 ] === '~' ) {
+				$branches = [];
+				_executeCommandReal( 'Listing remote branches.', 'git ls-remote --heads ' . $projectConfig->remote, 0, null, null, function ( $command, $returnCode, $result ) use ( &$branches ) {
+					if ( $returnCode ) {
+						return;
+					}
+					preg_match_all( '/refs\\/heads\\/(.+)/', $result, $matches );
+					$branches = $matches[ 1 ];
+				} );
+			}
+
+			if ( $branchOg[ 0 ] === '~' ) {
+				$pattern = '/^' . substr( $branchOg, 1 ) . '$/';
+				$branches = array_filter( $branches, function ( $name ) use ( $pattern ) {
+					return preg_match( $pattern, $name ) > 0;
+				} );
+			}
+
+			if ( empty( $branches ) ) {
 				continue;
 			}
 
-			if ( !property_exists( $branchConfig, 'autosync' ) ) {
-				$branchConfig->autosync = true;
-			}
-			if ( !property_exists( $branchConfig, 'bare' ) ) {
-				$branchConfig->bare = false;
-			}
-			if ( !property_exists( $branchConfig, 'deep' ) ) {
-				$branchConfig->deep = false;
-			}
-			if ( !property_exists( $branchConfig, 'syncSubmodules' ) ) {
-				$branchConfig->syncSubmodules = true;
-			}
-			if ( !property_exists( $branchConfig, 'commandOnFinish' ) ) {
-				$branchConfig->commandOnFinish = null;
-			}
-			if ( !property_exists( $branchConfig, 'urlOnFinish' ) ) {
-				$branchConfig->urlOnFinish = null;
-			}
-			if ( !property_exists( $branchConfig, 'supportEmail' ) ) {
-				$branchConfig->supportEmail = null;
-			}
+			if ( property_exists( $projectConfig, 'autosync' ) &&
+			     $projectConfig->autosync === false &&
+			     !$forcesync
+			) {
 
-			_output( '<br/><br/>### Processing branch: <b>' . $branchName . '</b><br/>' );
-			// Check autosync option
-			if ( !$branchConfig->autosync && !$forcesync ) {
-				// Autosync is disabled.
-				_output( '<br/>Autosync is disabled for this branch in the configuration file. Skipping.' );
+				_output( '<br/>Autosync is disabled for this projects in the configuration file. Skipping.' );
 				continue;
 			}
 
-			$projectExistsLocaly = file_exists( $branchConfig->local );
 
-			// Check config to full clean local direcotry.
-			if ( $clean && is_dir( $branchConfig->local ) ) {
-				if ( _executeCommand( 'Deleting project directory: ' . $branchConfig->local, 'rm -rf ' . $branchConfig->local ) ) {
-					// Error (permission)
-					_emailSupport( $projectConfig->supportEmail );
-					break;
-				}
-				$projectExistsLocaly = false;
-			}
+			$branchesDone = [];
+			foreach ( $branches as $branch ) {
+
+				foreach ( $projectConfig->branches as $branchName => $branchConfigOg ) {
+					// If there is a given branch we will update only it.
+					// If there isn't a given branch we will update all branches
+
+					$matchesBranch = null;
+					if ( !MatchName( $branch, $branchName, $matchesBranch ) ) {
+						continue;
+					}
+
+					$branchName = $matchesBranch[ 0 ];
+					if ( !empty( $branchesDone[ $branchName ] ) ) {
+						continue;
+					}
+
+					$branchesDone[ $branchName ] = true;
+					$branchConfig = InitBranchConfig( $config, $projectConfig, $branchConfigOg, $matchesProject, $matchesBranch );
+
+					_output( '<br/><br/>### Processing branch: <b>' . $branchName . '</b><br/>' );
+					// Check autosync option
+					if ( !$branchConfig->autosync && !$forcesync ) {
+						// Autosync is disabled.
+						_output( '<br/>Autosync is disabled for this branch in the configuration file. Skipping.' );
+						continue;
+					}
+
+					$projectExistsLocaly = file_exists( $branchConfig->local );
+
+					// Check config to full clean local direcotry.
+					if ( $clean && is_dir( $branchConfig->local ) ) {
+						if ( _executeCommand( 'Deleting project directory: ' . $branchConfig->local, 'rm -rf ' . $branchConfig->local ) ) {
+							// Error (permission)
+							_emailSupport( $projectConfig->supportEmail );
+							break;
+						}
+						$projectExistsLocaly = false;
+					}
 
 
-			if ( !$projectExistsLocaly ) {
-				// recursive option to clone submodules
-				$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
-				// options
-				$bare = $branchConfig->bare ? ' --bare ' : '';
-				$branch = $branchName != '*' ? ' --branch ' . $branchName . ' ' : '';
-				$deep = $branchConfig->deep ? '' : ' --depth 1 ';
-				//Clone only latest version of the given branch
-				$command = 'git clone ' . $deep . $branch . $cloneRecursive . $bare . ' ' . $projectConfig->remote . ' ' . $branchConfig->local;
-				$returnCode = _executeCommand( "Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount );
-				if ( $returnCode ) {
-					// Error, stop execution
-					_emailSupport( $projectConfig->supportEmail );
-					break;
-				}
-			}
+					if ( !$projectExistsLocaly ) {
+						// recursive option to clone submodules
+						$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
+						// options
+						$bare = $branchConfig->bare ? ' --bare ' : '';
+						$branchcmd = $branchName != '*' ? ' --branch ' . $branchName . ' ' : '';
+						$deep = $branchConfig->deep ? '' : ' --depth 1 ';
+						//Clone only latest version of the given branch
+						$command = 'git clone ' . $deep . $branchcmd . $cloneRecursive . $bare . ' ' . $projectConfig->remote . ' ' . $branchConfig->local;
+						$returnCode = _executeCommand( "Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount );
+						if ( $returnCode ) {
+							// Error, stop execution
+							_emailSupport( $projectConfig->supportEmail );
+							break;
+						}
+					}
 
-			// Change directory to project location
-			if ( !chdir( $branchConfig->local ) ) {
-				_output( '<br/>Error: cant change directory to ' . $branchConfig->local );
-				// Error, stop execution
-				_emailSupport( $projectConfig->supportEmail );
-				break;
-			}
-
-			// Sync sorce tree
-			if ( $projectExistsLocaly ) {
-				// Reset. This will reset changed files to the last commit
-
-				if ( !$branchConfig->bare ) {
-					$command = 'git reset --hard';
-					$returnCode = _executeCommand( 'Reseting.', $command );
-					if ( $returnCode ) {
+					// Change directory to project location
+					if ( !@chdir( $branchConfig->local ) ) {
+						_output( '<br/>Error: cant change directory to ' . $branchConfig->local );
 						// Error, stop execution
 						_emailSupport( $projectConfig->supportEmail );
 						break;
 					}
 
-					$command = 'git submodule foreach --recursive git reset --hard';
-					$returnCode = _executeCommand( 'Reseting submodules.', $command );
-					if ( $returnCode ) {
-						// Error, stop execution
-						_emailSupport( $projectConfig->supportEmail );
-						break;
-					}
-				}
+					// Sync source tree
+					if ( $projectExistsLocaly ) {
+						// Reset. This will reset changed files to the last commit
 
-				// Pull
-				$branchcmd = $branchName != '*' ? 'origin ' . $branchName : 'origin "+refs/heads/*:refs/heads/*"';
-				$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
-				$command = 'git ' . $pull . ' ' . $branchcmd;
-				$returnCode = _executeCommand( 'Pulling', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
-				if ( $returnCode ) {
-					// Error, stop execution
-					_emailSupport( $projectConfig->supportEmail );
-					break;
-				}
+						if ( !$branchConfig->bare ) {
+							$command = 'git reset --hard';
+							$returnCode = _executeCommand( 'Reseting.', $command );
+							if ( $returnCode ) {
+								// Error, stop execution
+								_emailSupport( $projectConfig->supportEmail );
+								break;
+							}
 
-				if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
-					//Submodules
-					$command = 'git submodule update --init --recursive';
-					$returnCode = _executeCommand( 'Update submodules', $command, $config->retryOnErrorCount );
-					if ( $returnCode ) {
-						// Error, stop execution
-						_emailSupport( $projectConfig->supportEmail );
-						break;
+							$command = 'git submodule foreach --recursive git reset --hard';
+							$returnCode = _executeCommand( 'Reseting submodules.', $command );
+							if ( $returnCode ) {
+								// Error, stop execution
+								_emailSupport( $projectConfig->supportEmail );
+								break;
+							}
+						}
+
+						// Pull
+						$branchcmd = $branchName != '*' ? 'origin ' . $branchName : 'origin "+refs/heads/*:refs/heads/*"';
+						$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
+						$command = 'git ' . $pull . ' ' . $branchcmd;
+						$returnCode = _executeCommand( 'Pulling.', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
+						if ( $returnCode ) {
+							// Error, stop execution
+							_emailSupport( $projectConfig->supportEmail );
+							break;
+						}
+
+						if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
+							//Submodules
+							$command = 'git submodule update --init --recursive';
+							$returnCode = _executeCommand( 'Update submodules', $command, $config->retryOnErrorCount );
+							if ( $returnCode ) {
+								// Error, stop execution
+								_emailSupport( $projectConfig->supportEmail );
+								break;
+							}
+						}
 					}
+
+					_postFinish( $branchConfig, $branchConfig, $projectConfig );
+
+					$finishedSomething = true;
+					$finishedSomethingPrj = true;
 				}
 			}
 
-			_postFinish( $branchConfig, $branchConfig, $projectConfig );
-
-			$finishedSomething = true;
-			$finishedSomethingPrj = true;
-		}
-
-		if ( $finishedSomethingPrj ) {
-			_postFinish( $projectConfig, $projectConfig );
+			if ( $finishedSomethingPrj ) {
+				_postFinish( $projectConfig, $projectConfig );
+			}
 		}
 	}
 
@@ -440,23 +455,39 @@
 		}
 	}
 
+	function _executeCommandReal () {
+		global $testMode;
+		$args = func_get_args();
+		$t = $testMode;
+		$testMode = false;
+		$ret = call_user_func_array( '_executeCommand', $args );
+		$testMode = $t;
+		return $ret;
+	}
+
 	/**
 	 *  Executes given command and writes it to to output.
 	 */
-	function _executeCommand ( $description, $command, $retryOnErrorCount = 0, $customRetry = null, $customArg = null ) {
-		global $config;
+	function _executeCommand ( $description, $command, $retryOnErrorCount = 0, $customRetry = null, $customArg = null, $resultCallback = null ) {
+		global $config, $testMode;
 		// Execute command. Append 2>&1 to show errors.
-		exec( $command . ' 2>&1', $result, $returnCode );
+		if ( $testMode ) {
+			$returnCode = 0;
+			$result = [];
+		}
+		else {
+			exec( $command . ' 2>&1', $result, $returnCode );
+		}
 		// Output
 		_output( '<br/>' );
 		_output( '<span style="font-size: smaller; color: #888888;">' . @date( 'c' ) . '</span><br/>' );
 		if ( $description ) {
 			_output( $description . '<br/>' );
 		}
-		_output(
-				'<div style="font-family: monospace; width: 100%; box-sizing: border-box; overflow-x: auto;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">' . $command . '</span><br/>' .
-				'<pre style="padding-left: 15px;">' . implode( '<br/> ', $result ) . '</pre></div><br/>'
-		);
+		_output( '<div style="font-family: monospace; width: 100%; box-sizing: border-box; overflow-x: auto;"><span style="color: #6BE234;">$</span> <span style="color: #729FCF;">' . $command . '</span><br/>' );
+		if ( !empty( $result ) ) {
+			_output( '<pre style="padding-left: 15px;">' . implode( '<br/> ', $result ) . '</pre></div><br/>' );
+		}
 		//_output( ' resultCode: '.$returnCode.'<br/>' );
 		// Check for error
 		if ( $returnCode ) {
@@ -469,6 +500,10 @@
 				// Retry
 				return _executeCommand( '', $command, --$retryOnErrorCount );
 			}
+		}
+
+		if ( is_callable( $resultCallback ) ) {
+			$resultCallback( $command, $returnCode, implode( "\n", $result ) );
 		}
 
 		return $returnCode;
@@ -498,7 +533,7 @@
 	 *  Sends text/html email.
 	 */
 	function _emailSupport ( $toEmails, $subject = "GitHub synchronization failed" ) {
-		global $output, $config, $hadErrors, $noemail;
+		global $output, $config, $hadErrors, $noemail, $testMode;
 		$hadErrors = true;
 
 		if ( $noemail || empty( $toEmails ) ) {
@@ -511,6 +546,10 @@
 		}
 		_output( '<br/>Send email to support: ' . implode( ', ', $toEmails ) );
 
+		if ( $testMode ) {
+			return;
+		}
+
 		$from = $config->supportEmailFrom;
 		$headers = "From: $from\r\n";
 		$headers .= "Content-Type: text/html\r\n";
@@ -520,5 +559,137 @@
 			}
 			mail( $toEmail, $subject, $output, $headers );
 		}
+	}
+
+	function MatchName ( $nameA, $nameB, &$matches, $config = null ) {
+
+		$matches = [ $nameA ];
+
+		if ( $nameA === '*' || $nameB === '*' || $nameA === $nameB ) {
+			return true;
+		}
+		if ( $nameB[ 0 ] === '~' ) {
+			$pattern = '/^' . substr( $nameB, 1 ) . '$/';
+			if ( preg_match( $pattern, $nameA, $matches ) > 0 ) {
+				
+				if ( $config === null ||
+				     empty( $config->matches ) ||
+				     in_array( $nameA, $config->matches ) ) {
+					
+
+					return true;
+				}
+			}
+		}
+
+		$matches = null;
+		return false;
+	}
+
+	function RenderVars ( $value, $matchesProject = null, $matchesBranch = null ) {
+		global $payload;
+
+		return preg_replace_callback( 
+		
+			'/\\{([^\\.\\}]+(\\.[^\\.\\}]+)*)\\}/',
+		
+			function ( $matches ) use ( $value, $matchesProject, $matchesBranch ) {
+				$var = $matches[ 1 ];
+				if ( $var === 'payload.repository.ssh_url' ) {
+					return $payload->repository->ssh_url;
+				}
+				if ( substr( $var, 0, 9 ) == '$project.' ) {
+					$var = (int)substr( $var, 9 );
+					return empty( $matchesProject[ $var ] ) ? '' : $matchesProject[ $var ];
+				}
+				if ( substr( $var, 0, 8 ) == '$branch.' ) {
+					$var = (int)substr( $var, 8 );
+					return empty( $matchesBranch[ $var ] ) ? '' : $matchesBranch[ $var ];
+				}
+				return $matches[ 0 ];
+			},
+		
+			$value
+		);
+	}
+
+	function InitConfig ( $config ) {
+		// some defaults
+		if ( !property_exists( $config, 'logs' ) ) {
+			$config->logs = true;
+		}
+		if ( !property_exists( $config, 'debug' ) ) {
+			$config->debug = false;
+		}
+		if ( !property_exists( $config, 'supportEmail' ) ) {
+			$config->supportEmail = null;
+		}
+		if ( !property_exists( $config, 'supportEmailFrom' ) ) {
+			$config->supportEmailFrom = null;
+		}
+		if ( !property_exists( $config, 'commandOnFinish' ) ) {
+			$config->commandOnFinish = null;
+		}
+		if ( !property_exists( $config, 'urlOnFinish' ) ) {
+			$config->urlOnFinish = null;
+		}
+
+		return $config;
+	}
+
+	function InitProjectConfig ( $config, $projectConfig, $matchesProject ) {
+		$projectConfig = clone $projectConfig;
+
+		if ( !property_exists( $projectConfig, 'supportEmail' ) ) {
+			$projectConfig->supportEmail = $config->supportEmail;
+		}
+		if ( !property_exists( $projectConfig, 'commandOnFinish' ) ) {
+			$projectConfig->commandOnFinish = null;
+		}
+		if ( !property_exists( $projectConfig, 'urlOnFinish' ) ) {
+			$projectConfig->urlOnFinish = null;
+		}
+
+		foreach ( $projectConfig as $key => $value ) {
+			if ( is_string( $value ) ) {
+				$projectConfig->$key = RenderVars( $value, $matchesProject );
+			}
+		}
+
+		return $projectConfig;
+	}
+
+	function InitBranchConfig ( $config, $projectConfig, $branchConfig, $matchesProject, $matchesBranch ) {
+		$branchConfig = clone $branchConfig;
+
+		if ( !property_exists( $branchConfig, 'autosync' ) ) {
+			$branchConfig->autosync = true;
+		}
+		if ( !property_exists( $branchConfig, 'bare' ) ) {
+			$branchConfig->bare = false;
+		}
+		if ( !property_exists( $branchConfig, 'deep' ) ) {
+			$branchConfig->deep = false;
+		}
+		if ( !property_exists( $branchConfig, 'syncSubmodules' ) ) {
+			$branchConfig->syncSubmodules = true;
+		}
+		if ( !property_exists( $branchConfig, 'commandOnFinish' ) ) {
+			$branchConfig->commandOnFinish = null;
+		}
+		if ( !property_exists( $branchConfig, 'urlOnFinish' ) ) {
+			$branchConfig->urlOnFinish = null;
+		}
+		if ( !property_exists( $branchConfig, 'supportEmail' ) ) {
+			$branchConfig->supportEmail = null;
+		}
+
+		foreach ( $branchConfig as $key => $value ) {
+			if ( is_string( $value ) ) {
+				$branchConfig->$key = RenderVars( $value, $matchesProject, $matchesBranch );
+			}
+		}
+
+		return $branchConfig;
 	}
 ?>

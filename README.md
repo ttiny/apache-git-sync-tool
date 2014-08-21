@@ -16,7 +16,7 @@ changes. Also, if there are any untracked files that prevent the pull from
 happening, these will be deleted. In other words the tool is only meant for
 mirroring repositories and not for use with real working copy.
 
-#####All you need to do to setup it: 
+##### All you need to do to setup it: 
 1. Setup your apache user to access github.
 2. Copy sync.php and config.json into some folder, accessible on your web
    server where you want to deploy projects. Edit configuration and add
@@ -25,6 +25,20 @@ mirroring repositories and not for use with real working copy.
 4. Setup WebHook notifications.
 
 __Note:__ Tested with _git 1.7.10.4_.
+
+
+Changelog
+---------
+
+### 0.6
+- Started keeping changelog and versions.
+- Added support regexes in project/branch name: names starting with `~` are
+  considered regex (after the tilde).
+- Added support for variables in the config values:
+  - `{payload.repository.ssh_url}`
+  - `{$project.N}`, `{$branch.N}` where `N` is number of the regex
+    capture group.
+- Added GET paremeter `test`, to not execute any commands but just print them.
 
 
 Setup ssh access to github for the apache user
@@ -55,13 +69,13 @@ Configuration file config.json
 --------------------
 
 sync.php supports many projects in the configuration file specified in
-'projects' section. Each member of 'projects' is an object with same name as
+the 'projects' section. Each member of 'projects' is an object with same name as
 the project name and has 'remote' element which specify the remote git
 repository of the project (SSH url). You need to add configuration for each
 project branch that you want to be able to sync. At least one branch should be
 added to the configuration.
 
-There is a special branch name called "*". Branch will this name will pull
+There is a special branch name called `*`. Branch with this name will pull
 all branches under the specified directory and update to any branch will
 trigger its update.
 
@@ -136,7 +150,8 @@ Possible parameters are:
   sent.
 * `noonfinish` (`1`/__`0`__) – Setting this to `1` will cause no commands
   to be performed or URLs to be loaded on finish.
-
+* `test` (`1`/__`0`__) – Setting this to `1` will cause no git commands
+  to be performed, but just to print them.
 
 ##### Examples:
 - `sync.php?project=test&branch=*` – Updates every branch of project 'test' from
