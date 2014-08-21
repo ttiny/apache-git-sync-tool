@@ -3,7 +3,9 @@
 	"supportEmailFrom": "sync.php@your-web-server.com",
 	"logs": false,
 	"retryOnErrorCount": 2,
+	
 	"projects": {
+		
 		"articles": {
 			"remote": "git@github.com:Perennials/articles.git",
 			"supportEmail": "your-email2@example.com",
@@ -19,6 +21,28 @@
 					"syncSubmodules": false
 				}
 			}
+		},
+
+		"~(.+)-js": {
+
+			"matches": [
+				"unitest-js",
+				"prototype-js"
+			],
+
+			"remote": "git@github.com:Perennials/{$project.0}.git",
+			
+			"branches": {
+				"~.+": {
+					"local": "/var/www/deploy/{$project.1}/{$branch.0}"
+				},
+				"*": {
+					"local": "/var/www/deploy/{$project.1}/.redmine",
+					"bare": true,
+					"deep": true
+				}
+			}
 		}
+
 	}
 }

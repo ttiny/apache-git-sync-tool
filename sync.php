@@ -139,7 +139,7 @@
 		$projects = [];
 		foreach ( $config->projects as $name => $value ) {
 			if ( $name[ 0 ] === '~' ) {
-				$projects = array_merge( $projects, $value->matches );
+				$projects = array_merge( $projects, $value->initial );
 			}
 			else {
 				$projects[] = $name;
@@ -151,7 +151,7 @@
 		$projects = [];
 		foreach ( $config->projects as $name => $value ) {
 			if ( $name[ 0 ] === '~' ) {
-				foreach ( $value->matches as $name ) {
+				foreach ( $value->initial as $name ) {
 					if ( preg_match( $pattern, $name ) > 0 ) {
 						$projects[] = $name;
 					}
@@ -570,16 +570,7 @@
 		}
 		if ( $nameB[ 0 ] === '~' ) {
 			$pattern = '/^' . substr( $nameB, 1 ) . '$/';
-			if ( preg_match( $pattern, $nameA, $matches ) > 0 ) {
-				
-				if ( $config === null ||
-				     empty( $config->matches ) ||
-				     in_array( $nameA, $config->matches ) ) {
-					
-
-					return true;
-				}
-			}
+			return preg_match( $pattern, $nameA, $matches ) > 0;
 		}
 
 		$matches = null;

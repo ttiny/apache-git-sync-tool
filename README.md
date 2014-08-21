@@ -102,6 +102,10 @@ Top level configuration:
   URLs.
 
 Every project has these configuration elements:
+* `initial` - this is only used with projects which has regex as name. It is
+  array of strings listing the allowed project names. This is necessary if
+  you want to sync multiple projects manually, otherwise `project=*` will not
+  know which projects to sync. But GitHub hooks will still work without this.
 * `remote` - SSH URL of git repository.
 * `branches` - Object with per-branch configuration. Only branches listed here
   will be synced.
