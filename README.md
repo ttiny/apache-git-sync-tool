@@ -32,7 +32,7 @@ Changelog
 
 ### 0.6
 - Started keeping changelog and versions.
-- Added support regexes in project/branch name: names starting with `~` are
+- Added support for regexes in project/branch name: names starting with `~` are
   considered regex (after the tilde).
 - Added support for variables in the config values:
   - `{payload.repository.ssh_url}`
