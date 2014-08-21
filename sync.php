@@ -229,7 +229,9 @@
 						continue;
 					}
 
-					$branchName = $matchesBranch[ 0 ];
+					if ( $branchName != '*' ) {
+						$branchName = $matchesBranch[ 0 ];
+					}
 					if ( !empty( $branchesDone[ $branchName ] ) ) {
 						continue;
 					}
