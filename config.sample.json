@@ -25,7 +25,7 @@
 
 		"~(.+)-js": {
 
-			"matches": [
+			"initial": [
 				"unitest-js",
 				"prototype-js"
 			],
