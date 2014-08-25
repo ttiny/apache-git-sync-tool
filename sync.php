@@ -78,7 +78,7 @@
 </head>
 <body style="background-color: #404040; color: #FFFFFF;">
 <div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">
-<?
+<?php
 
 	flush();
 
