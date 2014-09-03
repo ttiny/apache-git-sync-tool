@@ -30,6 +30,11 @@ __Note:__ Tested with _git 1.7.10.4_.
 Changelog
 ---------
 
+### 0.7
+- Ignore GitHub notifications for tag creation.
+- Handle GitHub notifications for branch deletion.
+- Add `delete` GET parameter to delete branch(es).
+
 ### 0.6
 - Started keeping changelog and versions.
 - Added support for regexes in project/branch name: names starting with `~` are
@@ -146,8 +151,10 @@ Possible parameters are:
   json data that is send from GitHub.com when notifying your script using web
   hook URL. If specified as GET parameter it overrides the project branch from
   the POST 'payload' data. Setting this to `*` will sync all branches.
-* `clean` (`1`/__`0`__) –  Setting this to 1 will delete local branch
-  directory and then will make a git pull of latest revision.
+* `clean` (`1`/__`0`__) –  Setting this to `1` will delete the local branch
+  directory and then will clone.
+* `delete` (`1`/__`0`__) –  Setting this to `1` will delete the local branch
+  directory.
 * `forcesync` (`1`/__`0`__) – Setting this to `1` will ignore `"autosync":
   false` option from the configuration file.
 * `noemail` (`1`/__`0`__) – Setting this to `1` will cause no emails to be

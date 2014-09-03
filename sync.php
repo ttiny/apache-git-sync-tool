@@ -16,6 +16,7 @@
 	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
 
 	$hadErrors = false;
+	$phpInput = file_get_contents( 'php://input' );
 
 	if ( !empty( $config->debugAll ) && $config->debugAll === true ) {
 		$dir = _getLogsDir() . $logfn;
@@ -30,7 +31,7 @@
 			file_put_contents( $dir . '_POST.json', json_encode( $_POST ) );
 			file_put_contents( $dir . '_GET.json', json_encode( $_GET ) );
 		}
-		file_put_contents( $dir . '_php_input.txt', file_get_contents( 'php://input' ) );
+		file_put_contents( $dir . '_php_input.txt', $phpInput );
 	}
 
 	$branch = null;
@@ -38,25 +39,12 @@
 	// if things come from github don't output html
 	$shouldBuffer = false;
 	$payload = null;
+	$shouldDeleteBranch = false;
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
 		$shouldBuffer = true;
 		header( 'Content-Type: text/plain' );
 		ob_start();
-		// Payload data from github
-		if ( !empty( $_POST[ 'payload' ] ) ) {
-			// php < 5.4 retardness
-			if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
-				$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
-			}
-			$payload = json_decode( $_POST[ 'payload' ] );
-		}
-		else {
-			$payload = json_decode( file_get_contents( 'php://input' ) );
-		}
-		$project = $payload->repository->name;
-		$refPath = explode( "/", $payload->ref );
-		$branch = $refPath[ count( $refPath ) - 1 ];
 	}
 
 	InitConfig( $config );
@@ -80,7 +68,44 @@
 <div style="box-sizing: border-box; padding: 15px; width: 100%; height: 100%; background-color: #404040; color: #FFFFFF;">
 <?php
 
-	flush();
+	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
+		$headers = getallheaders();
+		if ( is_array( $headers ) && !empty( $headers[ 'X-GitHub-Event' ] ) && $headers[ 'X-GitHub-Event' ] !== 'push' ) {
+			_output( 'Don\'t know how to handle GitHub event ' . $headers[ 'X-GitHub-Event' ] . ' .' );
+			exit( 1 );
+		}
+		
+		// Payload data from github
+		if ( !empty( $_POST[ 'payload' ] ) ) {
+			// php < 5.4 retardness
+			if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
+				$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
+			}
+			$payload = json_decode( $_POST[ 'payload' ] );
+		}
+		else {
+			$payload = json_decode( $phpInput );
+		}
+
+		if ( is_object( $payload ) ) {
+
+			if ( !empty( $payload->repository->name ) ) {
+				$project = $payload->repository->name;
+			}
+			if ( !empty( $payload->ref ) ) {
+				$refPath = explode( '/', $payload->ref );
+				$refType = $refPath[ count( $refPath ) - 2 ];
+				if ( $refType !== 'heads' ) {
+					_output( 'Don\'t know how to handle ' . $payload->ref . ' (because of ' . $refType . ', was expecting heads).' );
+					exit( 1 );
+				}
+				$branch = $refPath[ count( $refPath ) - 1 ];
+			}
+			if ( !empty( $payload->deleted ) && $payload->deleted === true ) {
+				$shouldDeleteBranch = true;
+			}
+		}
+	}
 
 	//Project
 	if ( !empty( $_GET[ 'project' ] ) ) {
@@ -101,6 +126,7 @@
 	}
 
 
+	$shouldDeleteBranch = array_key_exists( 'delete', $_GET ) ? $_GET[ 'delete' ] : $shouldDeleteBranch;
 	$clean = array_key_exists( 'clean', $_GET ) ? $_GET[ 'clean' ] : null;
 	$forcesync = array_key_exists( 'forcesync', $_GET ) ? $_GET[ 'forcesync' ] : null;
 	$noemail = array_key_exists( 'noemail', $_GET ) ? $_GET[ 'noemail' ] : null;
@@ -250,13 +276,17 @@
 					$projectExistsLocaly = file_exists( $branchConfig->local );
 
 					// Check config to full clean local direcotry.
-					if ( $clean && is_dir( $branchConfig->local ) ) {
+					if ( ($clean || ($shouldDeleteBranch && $branchName != '*')) && is_dir( $branchConfig->local ) ) {
 						if ( _executeCommand( 'Deleting project directory: ' . $branchConfig->local, 'rm -rf ' . $branchConfig->local ) ) {
 							// Error (permission)
 							_emailSupport( $projectConfig->supportEmail );
-							break;
+							continue;
 						}
 						$projectExistsLocaly = false;
+					}
+
+					if ( $shouldDeleteBranch && $branchName != '*' ) {
+						continue;
 					}
 
 
@@ -273,7 +303,7 @@
 						if ( $returnCode ) {
 							// Error, stop execution
 							_emailSupport( $projectConfig->supportEmail );
-							break;
+							continue;
 						}
 					}
 
@@ -282,7 +312,7 @@
 						_output( '<br/>Error: cant change directory to ' . $branchConfig->local );
 						// Error, stop execution
 						_emailSupport( $projectConfig->supportEmail );
-						break;
+						continue;
 					}
 
 					// Sync source tree
@@ -295,7 +325,7 @@
 							if ( $returnCode ) {
 								// Error, stop execution
 								_emailSupport( $projectConfig->supportEmail );
-								break;
+								continue;
 							}
 
 							$command = 'git submodule foreach --recursive git reset --hard';
@@ -303,7 +333,7 @@
 							if ( $returnCode ) {
 								// Error, stop execution
 								_emailSupport( $projectConfig->supportEmail );
-								break;
+								continue;
 							}
 						}
 
@@ -315,7 +345,7 @@
 						if ( $returnCode ) {
 							// Error, stop execution
 							_emailSupport( $projectConfig->supportEmail );
-							break;
+							continue;
 						}
 
 						if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
@@ -325,7 +355,7 @@
 							if ( $returnCode ) {
 								// Error, stop execution
 								_emailSupport( $projectConfig->supportEmail );
-								break;
+								continue;
 							}
 						}
 					}
