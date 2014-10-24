@@ -623,11 +623,11 @@
 				}
 				if ( substr( $var, 0, 9 ) == '$project.' ) {
 					$var = (int)substr( $var, 9 );
-					return empty( $matchesProject[ $var ] ) ? '' : $matchesProject[ $var ];
+					return array_key_exists( $var, $matchesProject ) ? $matchesProject[ $var ] : '';
 				}
 				if ( substr( $var, 0, 8 ) == '$branch.' ) {
 					$var = (int)substr( $var, 8 );
-					return empty( $matchesBranch[ $var ] ) ? '' : $matchesBranch[ $var ];
+					return array_key_exists( $var, $matchesBranch ) ? $matchesBranch[ $var ] : '';
 				}
 				return $matches[ 0 ];
 			},
