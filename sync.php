@@ -160,9 +160,9 @@
 	$projectOg = $project;
 	$branchOg = $branch;
 
-	$projects = [ $projectOg ];
+	$projects = array( $projectOg );
 	if ( $projectOg === '*' ) {
-		$projects = [];
+		$projects = array();
 		foreach ( $config->projects as $name => $value ) {
 			if ( $name[ 0 ] === '~' ) {
 				$projects = array_merge( $projects, $value->initial );
@@ -174,7 +174,7 @@
 	}
 	else if ( $projectOg[ 0 ] === '~' ) {
 		$pattern = '/^' . substr( $projectOg, 1 ) . '$/';
-		$projects = [];
+		$projects = array();
 		foreach ( $config->projects as $name => $value ) {
 			if ( $name[ 0 ] === '~' ) {
 				foreach ( $value->initial as $name ) {
@@ -209,10 +209,10 @@
 
 			_output( '<br/><br/>####<br/>#### Processing project: <b>' . $projectName . '</b><br/>####<br/>' );
 
-			$branches = [ $branchOg ];
+			$branches = array( $branchOg );
 			// loop all branches
 			if ( $branchOg === '*' || $branchOg[ 0 ] === '~' ) {
-				$branches = [];
+				$branches = array();
 				_executeCommandReal( 'Listing remote branches.', 'git ls-remote --heads ' . $projectConfig->remote, 0, null, null, function ( $command, $returnCode, $result ) use ( &$branches ) {
 					if ( $returnCode ) {
 						return;
@@ -243,7 +243,7 @@
 			}
 
 
-			$branchesDone = [];
+			$branchesDone = array();
 			foreach ( $branches as $branch ) {
 
 				foreach ( $projectConfig->branches as $branchName => $branchConfigOg ) {
@@ -505,7 +505,7 @@
 		// Execute command. Append 2>&1 to show errors.
 		if ( $testMode ) {
 			$returnCode = 0;
-			$result = [];
+			$result = array();
 		}
 		else {
 			exec( $command . ' 2>&1', $result, $returnCode );
@@ -595,7 +595,7 @@
 
 	function MatchName ( $nameA, $nameB, &$matches, $config = null ) {
 
-		$matches = [ $nameA ];
+		$matches = array( $nameA );
 
 		if ( $nameA === '*' || $nameB === '*' || $nameA === $nameB ) {
 			return true;
