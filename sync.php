@@ -272,94 +272,14 @@
 						_output( '<br/>Autosync is disabled for this branch in the configuration file. Skipping.' );
 						continue;
 					}
-
-					$projectExistsLocaly = file_exists( $branchConfig->local );
-
-					// Check config to full clean local direcotry.
-					if ( ($clean || ($shouldDeleteBranch && $branchName != '*')) && is_dir( $branchConfig->local ) ) {
-						if ( _executeCommand( 'Deleting project directory: ' . $branchConfig->local, 'rm -rf ' . $branchConfig->local ) ) {
-							// Error (permission)
-							_emailSupport( $projectConfig->supportEmail );
-							continue;
+					if(is_array($branchConfig->local)){
+						foreach($branchConfig->local as $key => $location){
+							_output( '<br/><br/>### Processing Location: <b>' . $location . '</b><br/>' );
+							workingLevel($config,$clean,$shouldDeleteBranch,$branchName,$branchConfig,$projectConfig,$location);
 						}
-						$projectExistsLocaly = false;
+					}else {
+						workingLevel($config,$clean,$shouldDeleteBranch,$branchName,$branchConfig,$projectConfig);
 					}
-
-					if ( $shouldDeleteBranch && $branchName != '*' ) {
-						continue;
-					}
-
-
-					if ( !$projectExistsLocaly ) {
-						// recursive option to clone submodules
-						$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
-						// options
-						$bare = $branchConfig->bare ? ' --bare ' : '';
-						$branchcmd = $branchName != '*' ? ' --branch ' . $branchName . ' ' : '';
-						$deep = $branchConfig->deep ? '' : ' --depth 1 ';
-						//Clone only latest version of the given branch
-						$command = 'git clone ' . $deep . $branchcmd . $cloneRecursive . $bare . ' ' . $projectConfig->remote . ' ' . $branchConfig->local;
-						$returnCode = _executeCommand( "Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount );
-						if ( $returnCode ) {
-							// Error, stop execution
-							_emailSupport( $projectConfig->supportEmail );
-							continue;
-						}
-					}
-
-					// Change directory to project location
-					if ( !@chdir( $branchConfig->local ) ) {
-						_output( '<br/>Error: cant change directory to ' . $branchConfig->local );
-						// Error, stop execution
-						_emailSupport( $projectConfig->supportEmail );
-						continue;
-					}
-
-					// Sync source tree
-					if ( $projectExistsLocaly ) {
-						// Reset. This will reset changed files to the last commit
-
-						if ( !$branchConfig->bare ) {
-							$command = 'git reset --hard';
-							$returnCode = _executeCommand( 'Reseting.', $command );
-							if ( $returnCode ) {
-								// Error, stop execution
-								_emailSupport( $projectConfig->supportEmail );
-								continue;
-							}
-
-							$command = 'git submodule foreach --recursive git reset --hard';
-							$returnCode = _executeCommand( 'Reseting submodules.', $command );
-							if ( $returnCode ) {
-								// Error, stop execution
-								_emailSupport( $projectConfig->supportEmail );
-								continue;
-							}
-						}
-
-						// Pull
-						$branchcmd = $branchName != '*' ? 'origin ' . $branchName : 'origin "+refs/heads/*:refs/heads/*"';
-						$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
-						$command = 'git ' . $pull . ' ' . $branchcmd;
-						$returnCode = _executeCommand( 'Pulling.', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
-						if ( $returnCode ) {
-							// Error, stop execution
-							_emailSupport( $projectConfig->supportEmail );
-							continue;
-						}
-
-						if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
-							//Submodules
-							$command = 'git submodule update --init --recursive';
-							$returnCode = _executeCommand( 'Update submodules', $command, $config->retryOnErrorCount );
-							if ( $returnCode ) {
-								// Error, stop execution
-								_emailSupport( $projectConfig->supportEmail );
-								continue;
-							}
-						}
-					}
-
 					_postFinish( $branchConfig, $branchConfig, $projectConfig );
 
 					$finishedSomething = true;
@@ -714,5 +634,100 @@
 		}
 
 		return $branchConfig;
+	}
+	
+	function workingLevel($config,$clean,$shouldDeleteBranch,$branchName,$branchConfig,$projectConfig,$location = null){
+		$directory = "";
+		if($location == null){
+			$directory = $branchConfig->local;
+		}else{
+			$directory = $location;
+		}
+		$projectExistsLocaly = file_exists( $directory );
+
+		// Check config to full clean local direcotry.
+		if ( ($clean || ($shouldDeleteBranch && $branchName != '*')) && is_dir( $directory ) ) {
+			if ( _executeCommand( 'Deleting project directory: ' . $directory, 'rm -rf ' . $directory ) ) {
+				// Error (permission)
+				_emailSupport( $projectConfig->supportEmail );
+				continue;
+			}
+			$projectExistsLocaly = false;
+		}
+
+		if ( $shouldDeleteBranch && $branchName != '*' ) {
+			continue;
+		}
+
+
+		if ( !$projectExistsLocaly ) {
+			// recursive option to clone submodules
+			$cloneRecursive = $branchConfig->syncSubmodules ? ' --recursive ' : '';
+			// options
+			$bare = $branchConfig->bare ? ' --bare ' : '';
+			$branchcmd = $branchName != '*' ? ' --branch ' . $branchName . ' ' : '';
+			$deep = $branchConfig->deep ? '' : ' --depth 1 ';
+			//Clone only latest version of the given branch
+			$command = 'git clone ' . $deep . $branchcmd . $cloneRecursive . $bare . ' ' . $projectConfig->remote . ' ' . $directory;
+			$returnCode = _executeCommand( "Local doesn't exist. Will clone remote.", $command, $config->retryOnErrorCount );
+			if ( $returnCode ) {
+				// Error, stop execution
+				_emailSupport( $projectConfig->supportEmail );
+				continue;
+			}
+		}
+
+		// Change directory to project location
+		if ( !@chdir( $directory ) ) {
+			_output( '<br/>Error: cant change directory to ' . $directory );
+			// Error, stop execution
+			_emailSupport( $projectConfig->supportEmail );
+			continue;
+		}
+
+		// Sync source tree
+		if ( $projectExistsLocaly ) {
+			// Reset. This will reset changed files to the last commit
+
+			if ( !$branchConfig->bare ) {
+				$command = 'git reset --hard';
+				$returnCode = _executeCommand( 'Reseting.', $command );
+				if ( $returnCode ) {
+					// Error, stop execution
+					_emailSupport( $projectConfig->supportEmail );
+					continue;
+				}
+
+				$command = 'git submodule foreach --recursive git reset --hard';
+				$returnCode = _executeCommand( 'Reseting submodules.', $command );
+				if ( $returnCode ) {
+					// Error, stop execution
+					_emailSupport( $projectConfig->supportEmail );
+					continue;
+				}
+			}
+
+			// Pull
+			$branchcmd = $branchName != '*' ? 'origin ' . $branchName : 'origin "+refs/heads/*:refs/heads/*"';
+			$pull = $branchConfig->bare ? 'fetch' : 'pull -s recursive -X theirs';
+			$command = 'git ' . $pull . ' ' . $branchcmd;
+			$returnCode = _executeCommand( 'Pulling.', $command, $config->retryOnErrorCount, '_cleanUntrackedStuff', $branchConfig );
+			if ( $returnCode ) {
+				// Error, stop execution
+				_emailSupport( $projectConfig->supportEmail );
+				continue;
+			}
+
+			if ( $branchConfig->syncSubmodules && !$branchConfig->bare ) {
+				//Submodules
+				$command = 'git submodule update --init --recursive';
+				$returnCode = _executeCommand( 'Update submodules', $command, $config->retryOnErrorCount );
+				if ( $returnCode ) {
+					// Error, stop execution
+					_emailSupport( $projectConfig->supportEmail );
+					continue;
+				}
+			}
+		}
 	}
 ?>
