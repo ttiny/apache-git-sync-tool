@@ -2,14 +2,14 @@ apache-git-sync-tool
 ====================
 
 This is a git sync (deploy) tool written in PHP that is able to receive GitHub
-notifications (WebHook) and update the local git repository. Also you can make
-your own requests with GET paramteres to specify project and branch. It
-includes a php script file - sync.php and configuration file - config.json.
-The tool supports unlimited number of projects which should be described in
-the configuration file. The local repositories are separated in project's
-branches. The tool creates different local repositories for every specified
-branch. It clones only latest revision of a branch but keeps previous
-synchronized revisions.
+and BitBucket notifications (WebHook) and update the local git repository.
+Also you can make your own requests with GET paramteres to specify project and
+branch. It includes a php script file - sync.php and configuration file -
+config.json. The tool supports unlimited number of projects which should be
+described in the configuration file. The local repositories are separated in
+project's branches. The tool creates different local repositories for every
+specified branch. It clones only latest revision of a branch but keeps
+previous synchronized revisions.
 
 __Warning:__ The tool performs hard reset of working tree to discard local
 changes. Also, if there are any untracked files that prevent the pull from
@@ -17,10 +17,10 @@ happening, these will be deleted. In other words the tool is only meant for
 mirroring repositories and not for use with real working copy.
 
 ##### All you need to do to setup it: 
-1. Setup your apache user to access github.
+1. Setup your apache user to access GitHub or BitBucket.
 2. Copy sync.php and config.json into some folder, accessible on your web
    server where you want to deploy projects. Edit configuration and add
-   projects to config.json.
+   projects to `config.json` (or `./config/local.json`).
 3. Test.
 4. Setup WebHook notifications.
 
@@ -29,6 +29,11 @@ __Note:__ Tested with _git 1.7.10.4_.
 
 Changelog
 ---------
+
+### 0.8
+- Add BitBucket support.
+- Prefer to save logs to `./log`, if it exists.
+- Prefer to load config from `./config/local.json`, if it exists.
 
 ### 0.7
 - Ignore GitHub notifications for tag creation.
@@ -47,7 +52,7 @@ Changelog
 
 
 Setup ssh access to github for the apache user
-----------------
+----------------------------------------------
 
 1. Let say the apache user is 'www-data' ('__www' on MAC). You need to add his
    ssh public key to github. If you don't have generated key you need to do it
@@ -92,9 +97,10 @@ Top level configuration:
 * `supportEmailFrom` – From email address to send notify on error.
 * `logs` – (__`true`__/`false`/`"/path/to/specified/directory"`) - Enable
   writing to a log file. By default (`true`) file "sync_log_timestamp.txt" is
-  generated in the same directory where is sync.php. Instead you are able to
-  specify different directory. Logs are generated only in case of errors.
-  `false` will disable logs explicitly in all cases.
+  generated in the same directory where is sync.php or "./log/timestamp.txt"
+  if there is directory called `log`. Instead you are able to specify
+  different directory. Logs are generated only in case of errors. `false` will
+  disable logs explicitly in all cases.
 * `debug` - (`true`/__`false`__) - Enable logs to be saved even when there is
   no error condition.
 * `debugAll` - (`true`/__`false`__) - Write even more logs, the PHP request and
@@ -182,7 +188,7 @@ Go to project *Settings -> Service Hooks -> WebHook URLs* and add your url to th
 Authors
 ---------
 Krum Stoilov - original implementation  
-Borislav Peev (borislav.asdf at gmail dot com)
+Borislav Peev (borislav.asdf at gmail dot com) - only bug fixes and adding new features, this is not my code
 
 #### Credits
 https://gist.github.com/oodavid/1809044

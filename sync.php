@@ -1,37 +1,75 @@
 <?php
+
+//bp: this tool is complete terrible global structurless mess
+
 	////////////////////////////////
 	// Init variables			 //
 	// Log file name.
-	$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
 	$dir = dirname( __FILE__ );
+	$logsDir = $dir . '/log';
 
 	error_reporting( E_ALL );
-	ini_set( 'error_log', $dir . $logfn . '_errors.log' );
+	
+	$logfn = '/' . str_replace( '.', '', (string)microtime( true ) );
+	if ( !file_exists( $logsDir ) || !is_dir( $logsDir ) ) {
+		$logsDir = $dir;
+	}
+	else {
+		$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
+	}
+	ini_set( 'error_log', $logsDir . $logfn . '_error.log' );
+
+	
 	ini_set( 'display_errors', 'On' );
 	ini_set( 'log_errors_max_len', 0 );
 	ini_set( 'log_errors', 'On' );
 
 	set_time_limit( 3600 ); // 1 hour
 	// Read configuration file
-	$config = json_decode( file_get_contents( $dir . "/config.json" ) );
+	if ( file_exists( $dir . '/config/local.json' ) ) {
+		$config = json_decode( file_get_contents( $dir . "/config/local.json" ) );
+	}
+	else {
+		$config = json_decode( file_get_contents( $dir . "/config.json" ) );
+	}
 
 	$hadErrors = false;
 	$phpInput = file_get_contents( 'php://input' );
+
+	$tryLogsDir = _getLogsDir();
+	if ( $tryLogsDir !== $logsDir ) {
+		$logsDir = $tryLogsDir;
+		ini_set( 'error_log', $logsDir . $logfn . '_error.log' );
+	}
 
 	if ( !empty( $config->debugAll ) && $config->debugAll === true ) {
 		$dir = _getLogsDir() . $logfn;
 		// php 5.2 compatibility
 		if ( defined( 'JSON_PRETTY_PRINT' ) ) {
-			file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER, JSON_PRETTY_PRINT ) );
-			file_put_contents( $dir . '_POST.json', json_encode( $_POST, JSON_PRETTY_PRINT ) );
-			file_put_contents( $dir . '_GET.json', json_encode( $_GET, JSON_PRETTY_PRINT ) );
+			if ( !empty( $_SERVER ) ) {
+				file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER, JSON_PRETTY_PRINT ) );
+			}
+			if ( !empty( $_POST ) ) {
+				file_put_contents( $dir . '_POST.json', json_encode( $_POST, JSON_PRETTY_PRINT ) );
+			}
+			if ( !empty( $_GET ) ) {
+				file_put_contents( $dir . '_GET.json', json_encode( $_GET, JSON_PRETTY_PRINT ) );
+			}
 		}
 		else {
-			file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER ) );
-			file_put_contents( $dir . '_POST.json', json_encode( $_POST ) );
-			file_put_contents( $dir . '_GET.json', json_encode( $_GET ) );
+			if ( !empty( $_SERVER ) ) {
+				file_put_contents( $dir . '_SERVER.json', json_encode( $_SERVER ) );
+			}
+			if ( !empty( $_POST ) ) {
+				file_put_contents( $dir . '_POST.json', json_encode( $_POST ) );
+			}
+			if ( !empty( $_GET ) ) {
+				file_put_contents( $dir . '_GET.json', json_encode( $_GET ) );
+			}
 		}
-		file_put_contents( $dir . '_php_input.txt', $phpInput );
+		if ( !empty( $phpInput ) ) {
+			file_put_contents( $dir . '_php_input.txt', $phpInput );
+		}
 	}
 
 	$branch = null;
@@ -70,24 +108,71 @@
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
 		$headers = getallheaders();
-		if ( is_array( $headers ) && !empty( $headers[ 'X-GitHub-Event' ] ) && $headers[ 'X-GitHub-Event' ] !== 'push' ) {
-			_output( 'Don\'t know how to handle GitHub event ' . $headers[ 'X-GitHub-Event' ] . ' .' );
-			exit( 1 );
+		$isGitHub = false;
+		$isBitBucket = false;
+		if ( is_array( $headers ) ) {
+			# code...
+			//github
+			if ( !empty( $headers[ 'X-GitHub-Event' ] ) ) {
+				if ( $headers[ 'X-GitHub-Event' ] !== 'push' ) {
+					_output( 'Don\'t know how to handle GitHub event ' . $headers[ 'X-GitHub-Event' ] . ' .' );
+					_exit( 1 );
+				}
+				$isGitHub = true;
+			}
+			else {
+				foreach ( $headers as $key => $value ) {
+					//bp: double check. i got some kind of nasty php bug where
+					//    var dumping the array shows the header, but getting the value returns NULL
+					//    maybe some kind of encoding misconfiguration or something of this sort? i don't want to know,
+					//    rather rewrite this in nodejs
+					if ( strcasecmp( $key, 'X-GitHub-Event' ) == 0 ) {
+						if ( strcasecmp( $value, 'push' ) != 0 ) {
+							_output( 'Don\'t know how to handle GitHub event ' . $value . ' .' );
+							_exit( 1 );
+						}
+						$isGitHub = true;
+					}
+				}
+			}
+			// bitbucket
+			if ( !empty( $headers[ 'X-Event-Key' ] ) ) {
+				if ( $headers[ 'X-Event-Key' ] !== 'repo:push' ) {
+					_output( 'Don\'t know how to handle BitBucket event ' . $headers[ 'X-Event-Key' ] . ' .' );
+					_exit( 1 );
+				}
+				$isBitBucket = true;
+			}
+			else {
+				foreach ( $headers as $key => $value ) {
+					//bp: double check. i got some kind of nasty php bug where
+					//    var dumping the array shows the header, but getting the value returns NULL
+					//    maybe some kind of encoding misconfiguration or something of this sort? i don't want to know,
+					//    rather rewrite this in nodejs
+					if ( strcasecmp( $key, 'X-Event-Key' ) == 0 ) {
+						if ( strcasecmp( $value, 'repo:push' ) != 0 ) {
+							_output( 'Don\'t know how to handle BitBucket event ' . $value . ' .' );
+							_exit( 1 );
+						}
+						$isGitHub = true;
+					}
+				}
+			}
 		}
 		
 		// Payload data from github
-		if ( !empty( $_POST[ 'payload' ] ) ) {
+		if ( $isGitHub && !empty( $_POST[ 'payload' ] ) ) {
 			// php < 5.4 retardness
 			if ( function_exists( 'get_magic_quotes_gpc' ) && get_magic_quotes_gpc() ) {
 				$_POST[ 'payload' ] = stripslashes( $_POST[ 'payload' ] );
 			}
 			$payload = json_decode( $_POST[ 'payload' ] );
 		}
-		else {
+		else if ( $isBitBucket || empty( $_POST[ 'payload' ] ) ) {
 			$payload = json_decode( $phpInput );
 		}
 
-		if ( is_object( $payload ) ) {
+		if ( $isGitHub && is_object( $payload ) ) {
 
 			if ( !empty( $payload->repository->name ) ) {
 				$project = $payload->repository->name;
@@ -97,13 +182,35 @@
 				$refType = $refPath[ count( $refPath ) - 2 ];
 				if ( $refType !== 'heads' ) {
 					_output( 'Don\'t know how to handle ' . $payload->ref . ' (because of ' . $refType . ', was expecting heads).' );
-					exit( 1 );
+					_exit( 1 );
 				}
 				$branch = $refPath[ count( $refPath ) - 1 ];
 			}
 			if ( !empty( $payload->deleted ) && $payload->deleted === true ) {
 				$shouldDeleteBranch = true;
 			}
+
+		}
+		else if ( $isBitBucket && is_object( $payload ) ) {
+
+			if ( !empty( $payload->repository->name ) ) {
+				$project = $payload->repository->name;
+			}
+			
+			if ( !empty( $payload->push->changes[ 0 ]->new ) &&
+			     $payload->push->changes[ 0 ]->new->type === 'branch' ) {
+
+				$branch = $payload->push->changes[ 0 ]->new->name;
+			}
+
+			if ( !empty( $payload->push->changes[ 0 ]->old ) && 
+				 empty( $payload->push->changes[ 0 ]->new ) &&
+			     $payload->push->changes[ 0 ]->old->type === 'branch' ) {
+				
+				$branch = $payload->push->changes[ 0 ]->old->name;
+				$shouldDeleteBranch = true;
+			}
+
 		}
 	}
 
@@ -113,7 +220,7 @@
 	}
 	if ( empty( $project ) ) {
 		_output( 'No project specified.' );
-		exit( 1 );
+		_exit( 1 );
 	}
 
 	//Branch
@@ -122,7 +229,7 @@
 	}
 	if ( empty( $branch ) ) {
 		_output( 'No branch specified.' );
-		exit( 1 );
+		_exit( 1 );
 	}
 
 
@@ -146,12 +253,26 @@
 
 	// Check max execution time
 	//_output( 'Info - PHP max execution time: '.ini_get('max_execution_time').'sec<br/>' );
+	
 	// Check user name and access to github
 	_executeCommandReal( 'Running the script as user', 'whoami' );
-	if ( _executeCommandReal( 'Testing ssh access to github', 'ssh -T git@github.com' ) == 255 ) {
-		// Host key verification failed.
-		_emailSupport( $config->supportEmail );
-		exit( 1 );
+	if ( $isBitBucket ) {
+		if ( _executeCommandReal( 'Testing ssh access to BitBucket', 'ssh -T git@bitbucket.org' ) == 255 ) {
+			// Host key verification failed.
+			_emailSupport( $config->supportEmail );
+			_exit( 1 );
+		}
+	}
+	else if ( $isGitHub ) {
+		if ( _executeCommandReal( 'Testing ssh access to GitHub', 'ssh -T git@github.com' ) == 255 ) {
+			// Host key verification failed.
+			_emailSupport( $config->supportEmail );
+			_exit( 1 );
+		}
+	}
+	else {
+		_output( 'Unknown origin.' );
+		_exit( 1 );
 	}
 
 	////////////////////////////////////////////
@@ -408,7 +529,7 @@
 				if ( $returnCode ) {
 					// Error executing given command
 					_emailSupport( $emailConfig->supportEmail );
-					exit( 1 );
+					_exit( 1 );
 				}
 			}
 		}
@@ -421,7 +542,7 @@
 					// Error loading given url
 					_output( '<br/> Error on loading the url.' );
 					_emailSupport( $emailConfig->supportEmail );
-					exit( 1 );
+					_exit( 1 );
 				}
 			}
 		}
@@ -444,6 +565,13 @@
 		flush();
 	}
 
+	function _exit ( $code ) {
+		if ( $code > 0 && function_exists( 'http_response_code' ) ) {
+			http_response_code( 500 );
+		}
+		exit( $code );
+	}
+
 	/**
 	 *  This function executes at the end of php script.
 	 *  Writes end html tags and logs to file if enabled in configuration.
@@ -455,14 +583,14 @@
 	}
 
 	function _getLogsDir () {
-		global $config;
+		global $config, $logsDir;
 		if ( !empty( $config->logs ) && is_string( $config->logs ) ) {
 			$config->logs = realpath( $config->logs );
 			if ( is_dir( $config->logs ) ) {
 				return $config->logs;
 			}
 		}
-		return dirname( __FILE__ );
+		return $logsDir;
 	}
 
 	function _makeTxt ( $output ) {
