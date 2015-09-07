@@ -78,6 +78,8 @@
 	$shouldBuffer = false;
 	$payload = null;
 	$shouldDeleteBranch = false;
+	$isGitHub = false;
+	$isBitBucket = false;
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
 		$shouldBuffer = true;
@@ -108,8 +110,6 @@
 
 	if ( $_SERVER[ 'REQUEST_METHOD' ] == 'POST' ) {
 		$headers = getallheaders();
-		$isGitHub = false;
-		$isBitBucket = false;
 		if ( is_array( $headers ) ) {
 			# code...
 			//github
@@ -256,24 +256,22 @@
 	
 	// Check user name and access to github
 	_executeCommandReal( 'Running the script as user', 'whoami' );
-	if ( $isBitBucket ) {
-		if ( _executeCommandReal( 'Testing ssh access to BitBucket', 'ssh -T git@bitbucket.org' ) == 255 ) {
-			// Host key verification failed.
-			_emailSupport( $config->supportEmail );
-			_exit( 1 );
-		}
-	}
-	else if ( $isGitHub ) {
-		if ( _executeCommandReal( 'Testing ssh access to GitHub', 'ssh -T git@github.com' ) == 255 ) {
-			// Host key verification failed.
-			_emailSupport( $config->supportEmail );
-			_exit( 1 );
-		}
-	}
-	else {
-		_output( 'Unknown origin.' );
-		_exit( 1 );
-	}
+	
+	// this is not useful at this point, it needs to be done according to the git url, not where the requests comes from
+	// if ( $isGitHub ) {
+	// 	if ( _executeCommandReal( 'Testing ssh access to GitHub', 'ssh -T git@github.com' ) == 255 ) {
+	// 		// Host key verification failed.
+	// 		_emailSupport( $config->supportEmail );
+	// 		_exit( 1 );
+	// 	}
+	// }
+	// if ( $isBitBucket ) {
+	// 	if ( _executeCommandReal( 'Testing ssh access to BitBucket', 'ssh -T git@bitbucket.org' ) == 255 ) {
+	// 		// Host key verification failed.
+	// 		_emailSupport( $config->supportEmail );
+	// 		_exit( 1 );
+	// 	}
+	// }
 
 	////////////////////////////////////////////
 	// Process synchronization of the project //
