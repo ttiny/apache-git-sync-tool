@@ -243,7 +243,7 @@
 	////////////////////////////////
 	// Display useful information //
 
-	_output( 'Running GitHub synchronization...<br/>' );
+	_output( 'Running git synchronization...<br/>' );
 
 	_output( '<br/>Project: ' . $project );
 	_output( '<br/>Branch: ' . $branch );
