@@ -13,8 +13,6 @@
 	$logfn = '/' . str_replace( '.', '', (string)microtime( true ) );
 	if ( !file_exists( $logsDir ) || !is_dir( $logsDir ) ) {
 		$logsDir = $dir;
-	}
-	else {
 		$logfn = '/sync_log_' . str_replace( '.', '', (string)microtime( true ) );
 	}
 	ini_set( 'error_log', $logsDir . $logfn . '_error.log' );
