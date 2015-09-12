@@ -1,3 +1,17 @@
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+# DEPRECATED in favour of <https://github.com/Perennials/deploy>.
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
+&nbsp;  
 apache-git-sync-tool
 ====================
 
